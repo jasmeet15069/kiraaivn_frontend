@@ -82,6 +82,7 @@ body{
   border-radius:18px;
   overflow:hidden;
   box-shadow:0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -16px rgba(0,0,0,0.18);
+  position:relative;
 }
 
 .header{
@@ -264,16 +265,65 @@ body{
 .send-btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 .send-btn svg{width:18px;height:18px;}
 
-.tools-panel{
+.sidebar-overlay{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,0.28);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.22s ease;
+  z-index:4;
+}
+.sidebar-overlay.open{opacity:1;pointer-events:auto;}
+
+.sidebar{
+  position:absolute;
+  top:0; right:0; bottom:0;
+  width:320px;
+  max-width:88%;
+  background:var(--surface);
+  border-left:1px solid var(--border);
+  box-shadow:-10px 0 28px -14px rgba(0,0,0,0.3);
+  transform:translateX(100%);
+  transition:transform 0.22s ease;
+  display:flex;
+  flex-direction:column;
+  z-index:5;
+}
+.sidebar.open{transform:translateX(0);}
+.sidebar-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:14px 16px;
   border-bottom:1px solid var(--border);
-  background:var(--surface-2);
-  padding:0 20px;
-  max-height:0;
-  overflow:hidden;
-  transition:max-height 0.22s ease, padding 0.22s ease;
   flex-shrink:0;
 }
-.tools-panel.open{max-height:340px;overflow-y:auto;padding:16px 20px;}
+.sidebar-head h2{margin:0;font-size:14px;font-weight:800;letter-spacing:-0.01em;}
+.sidebar-body{flex:1;overflow-y:auto;padding:16px;}
+
+.connector-guide{font-size:12.5px;line-height:1.65;color:var(--text);}
+.connector-guide h3{
+  margin:16px 0 6px;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.05em;color:var(--text-muted);
+}
+.connector-guide h3:first-child{margin-top:0;}
+.connector-guide ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;}
+.connector-guide code{
+  font-family:'JetBrains Mono',monospace;font-size:11.5px;
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:4px;padding:1px 5px;
+}
+.connector-guide pre{
+  font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.5;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+  padding:10px;overflow-x:auto;margin:0;white-space:pre;
+}
+.connector-status{
+  font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:4px;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);
+}
 .tools-last-used{
   font-size:12px;
   color:var(--text);
@@ -335,6 +385,9 @@ body{
       <button class="icon-btn" id="toolsBtn" aria-label="Show available tools" title="Available tools">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
       </button>
+      <button class="icon-btn" id="connectorBtn" aria-label="System connector" title="System connector">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="8" height="6" rx="1"/><rect x="14" y="9" width="8" height="6" rx="1"/><path d="M10 12h4"/></svg>
+      </button>
       <button class="icon-btn" id="themeBtn" aria-label="Toggle light/dark theme" title="Toggle theme">
         <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg id="themeIconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
@@ -345,9 +398,44 @@ body{
     </div>
   </div>
 
-  <div class="tools-panel" id="toolsPanel">
-    <div class="tools-last-used" id="toolsLastUsed" hidden></div>
-    <div id="toolsList"><p class="tools-empty">Loading…</p></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="sidebar" id="toolsSidebar">
+    <div class="sidebar-head">
+      <h2>Available tools</h2>
+      <button class="icon-btn" id="toolsCloseBtn" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="sidebar-body">
+      <div class="tools-last-used" id="toolsLastUsed" hidden></div>
+      <div id="toolsList"><p class="tools-empty">Loading…</p></div>
+    </div>
+  </div>
+
+  <div class="sidebar" id="connectorSidebar">
+    <div class="sidebar-head">
+      <h2>System connector</h2>
+      <button class="icon-btn" id="connectorCloseBtn" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="sidebar-body">
+      <div id="connectorStatusList"><p class="tools-empty">Loading…</p></div>
+      <div class="connector-guide">
+        <h3>Connect your laptop (or any other machine)</h3>
+        <ol>
+          <li>Install <a href="https://tailscale.com/download" target="_blank" rel="noopener">Tailscale</a> on your laptop and sign in — it gives devices a private IP that's reachable with no port forwarding or router changes.</li>
+          <li>Install Tailscale on this backend's VPS too, signed into the <strong>same</strong> account:
+            <pre>curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up</pre>
+          </li>
+          <li>On the laptop, turn on an SSH server — Windows: Settings → Apps → Optional features → OpenSSH Server; macOS: System Settings → General → Sharing → Remote Login; Linux: <code>sudo systemctl enable --now sshd</code>.</li>
+          <li>Create a separate, limited OS user on the laptop for Jarvis to log in as (not your normal account), and a dedicated SSH key pair for it. Add the public key to that user's <code>authorized_keys</code>.</li>
+          <li>Send the connector a name, the laptop's Tailscale IP, that username, and the private key file — they get added to <code>connectors.json</code> and the backend's <code>.env</code>, never into the frontend or any repo.</li>
+        </ol>
+      </div>
+    </div>
   </div>
 
   <div class="messages" id="messages">
@@ -387,17 +475,22 @@ body{
     return id;
   }
 
+  var GROUP_LABELS = { cloud: 'Cloud', local: 'Local', 'ollama-cloud': 'Ollama Cloud' };
+  var GROUP_ORDER = ['cloud', 'local', 'ollama-cloud'];
+
   function populateModelSelect(){
     var previous = els.modelSelect.value;
     els.modelSelect.innerHTML = '';
-    var groups = { cloud: null, local: null };
+    var groups = {};
+    GROUP_ORDER.forEach(function(key){
+      var present = MODELS.some(function(m){ return (m.provider || 'cloud') === key; });
+      if (!present) return;
+      groups[key] = document.createElement('optgroup');
+      groups[key].label = GROUP_LABELS[key] || key;
+      els.modelSelect.appendChild(groups[key]);
+    });
     MODELS.forEach(function(m){
-      var groupKey = m.provider === 'local' ? 'local' : 'cloud';
-      if (!groups[groupKey]){
-        groups[groupKey] = document.createElement('optgroup');
-        groups[groupKey].label = groupKey === 'local' ? 'Local' : 'Cloud';
-        els.modelSelect.appendChild(groups[groupKey]);
-      }
+      var groupKey = groups[m.provider] ? m.provider : 'cloud';
       var opt = document.createElement('option');
       opt.value = m.id;
       opt.textContent = m.label;
@@ -437,9 +530,15 @@ body{
     fileInput: document.getElementById('fileInput'),
     attachmentsBar: document.getElementById('attachmentsBar'),
     toolsBtn: document.getElementById('toolsBtn'),
-    toolsPanel: document.getElementById('toolsPanel'),
+    toolsSidebar: document.getElementById('toolsSidebar'),
+    toolsCloseBtn: document.getElementById('toolsCloseBtn'),
     toolsList: document.getElementById('toolsList'),
     toolsLastUsed: document.getElementById('toolsLastUsed'),
+    connectorBtn: document.getElementById('connectorBtn'),
+    connectorSidebar: document.getElementById('connectorSidebar'),
+    connectorCloseBtn: document.getElementById('connectorCloseBtn'),
+    connectorStatusList: document.getElementById('connectorStatusList'),
+    sidebarOverlay: document.getElementById('sidebarOverlay'),
     themeBtn: document.getElementById('themeBtn'),
     themeIconSun: document.getElementById('themeIconSun'),
     themeIconMoon: document.getElementById('themeIconMoon')
@@ -495,18 +594,41 @@ body{
     return d.innerHTML;
   }
 
-  var toolsLoaded = false;
-  els.toolsBtn.addEventListener('click', function(){
-    els.toolsPanel.classList.toggle('open');
-    if (!toolsLoaded) loadTools();
-  });
+  var toolsDataLoaded = false;
+  var toolsDataCache = null;
 
-  function loadTools(){
-    toolsLoaded = true;
+  function openSidebar(sidebarEl){
+    els.toolsSidebar.classList.toggle('open', sidebarEl === els.toolsSidebar);
+    els.connectorSidebar.classList.toggle('open', sidebarEl === els.connectorSidebar);
+    els.sidebarOverlay.classList.add('open');
+  }
+  function closeSidebars(){
+    els.toolsSidebar.classList.remove('open');
+    els.connectorSidebar.classList.remove('open');
+    els.sidebarOverlay.classList.remove('open');
+  }
+
+  els.toolsBtn.addEventListener('click', function(){
+    openSidebar(els.toolsSidebar);
+    if (!toolsDataLoaded) loadToolsData();
+  });
+  els.connectorBtn.addEventListener('click', function(){
+    openSidebar(els.connectorSidebar);
+    if (!toolsDataLoaded) loadToolsData();
+  });
+  els.toolsCloseBtn.addEventListener('click', closeSidebars);
+  els.connectorCloseBtn.addEventListener('click', closeSidebars);
+  els.sidebarOverlay.addEventListener('click', closeSidebars);
+
+  function loadToolsData(){
+    toolsDataLoaded = true;
     fetch('/api/tools').then(function(res){ return res.json(); }).then(function(data){
+      toolsDataCache = data;
       renderTools(data);
+      renderConnectorStatus(data);
     }).catch(function(){
       els.toolsList.innerHTML = '<p class="tools-empty">Could not load tools right now.</p>';
+      els.connectorStatusList.innerHTML = '<p class="tools-empty">Could not load status right now.</p>';
     });
   }
 
@@ -524,18 +646,18 @@ body{
           '</div><div class="tool-desc">' + escapeHtml(t.description) + '</div></div>';
       }).join('') + '</div>';
     });
-    html += '<div class="tools-group"><h3>System connector</h3>';
+    els.toolsList.innerHTML = html || '<p class="tools-empty">No tools available.</p>';
+  }
+
+  function renderConnectorStatus(data){
     if (data.connectors && data.connectors.length){
-      html += data.connectors.map(function(c){
+      els.connectorStatusList.innerHTML = data.connectors.map(function(c){
         var status = data.connectors_active ? 'Active.' : 'Configured, but execution is not wired up yet.';
-        return '<div class="tool-item"><div class="tool-name">' + escapeHtml(c) +
-          '</div><div class="tool-desc">' + status + '</div></div>';
+        return '<div class="connector-status"><strong>' + escapeHtml(c) + '</strong> — ' + status + '</div>';
       }).join('');
     } else {
-      html += '<p class="tools-empty">No external systems connected. This VPS itself is never a valid target.</p>';
+      els.connectorStatusList.innerHTML = '<p class="connector-status">No external systems connected yet. This VPS itself is never a valid target — only machines you explicitly register below.</p>';
     }
-    html += '</div>';
-    els.toolsList.innerHTML = html || '<p class="tools-empty">No tools available.</p>';
   }
 
   function loadHistory(){
