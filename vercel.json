@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://kira-chat.167-233-158-179.sslip.io/api/:path*" }
+  ]
+}
