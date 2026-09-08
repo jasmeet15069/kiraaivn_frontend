@@ -330,6 +330,84 @@ body{
   background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);
 }
 
+.login-screen{
+  position:fixed;inset:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+}
+.login-screen:not(.open){display:none;}
+.login-card{
+  width:100%;max-width:300px;padding:28px 26px;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  box-shadow:0 12px 32px -16px rgba(0,0,0,0.25);
+  display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
+}
+.login-card .mark{margin-bottom:6px;}
+.login-card h1{margin:0;font-size:17px;font-weight:800;}
+.login-card p{margin:0 0 10px;font-size:12.5px;color:var(--text-muted);}
+.login-card input{
+  width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+  font-size:14px;padding:10px 12px;border-radius:10px;text-align:center;
+}
+.login-card input:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
+.login-card button{
+  width:100%;margin-top:10px;background:var(--accent);color:var(--accent-ink);
+  border:none;font-size:14px;font-weight:700;padding:10px 12px;border-radius:10px;cursor:pointer;
+}
+.login-card button:hover{filter:brightness(1.06);}
+.login-error{color:var(--danger);font-size:12px;margin:8px 0 0;}
+
+.modal-overlay{
+  position:fixed;inset:0;z-index:90;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.4);padding:20px;
+}
+.modal-overlay.open{display:flex;}
+.modal-card{
+  width:100%;max-width:360px;padding:22px;
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.modal-card h2{margin:0;font-size:15px;font-weight:800;}
+.modal-card p{margin:0;font-size:12.5px;color:var(--text-muted);line-height:1.5;}
+.modal-card label{font-size:11.5px;font-weight:600;color:var(--text-muted);display:flex;flex-direction:column;gap:4px;}
+.modal-card input{
+  background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+  font-size:13px;padding:8px 10px;border-radius:8px;font-family:'JetBrains Mono',monospace;
+}
+.modal-card input:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;}
+.btn-primary,.btn-secondary{
+  font-size:13px;font-weight:700;padding:8px 16px;border-radius:9px;cursor:pointer;border:none;
+}
+.btn-primary{background:var(--accent);color:var(--accent-ink);}
+.btn-primary:hover{filter:brightness(1.06);}
+.btn-secondary{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+.btn-small{
+  font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:7px;cursor:pointer;
+  background:var(--surface-2);color:var(--text);border:1px solid var(--border);
+}
+.btn-small:hover{border-color:var(--accent);color:var(--accent);}
+
+.section-head-row{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px;}
+.section-head-row .dashboard-section-label{margin:0;}
+
+.admin-toggle{
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);
+  font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;
+}
+.admin-toggle svg{width:14px;height:14px;}
+.admin-toggle.active{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
+
+.service-actions{display:flex;gap:5px;flex-shrink:0;}
+.service-actions button{
+  font-size:10.5px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);color:var(--text-muted);
+}
+.service-actions button:hover{color:var(--text);border-color:var(--accent);}
+.service-actions button.danger:hover{color:var(--danger);border-color:var(--danger);}
+
 .dashboard{
   position:absolute;
   inset:0;
@@ -488,6 +566,49 @@ body{
 </head>
 <body>
 
+<div class="login-screen" id="loginScreen">
+  <form class="login-card" id="loginForm">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+    </div>
+    <h1>Jarvis</h1>
+    <p>Enter the password to continue.</p>
+    <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" required>
+    <button type="submit" id="loginSubmitBtn">Continue</button>
+    <p class="login-error" id="loginError" hidden></p>
+  </form>
+</div>
+
+<div class="modal-overlay" id="adminModalOverlay">
+  <form class="modal-card" id="adminModalForm">
+    <h2>Confirm admin mode</h2>
+    <p>Re-enter the password to unlock start/stop/delete/create controls for every service and container on the VPS.</p>
+    <input type="password" id="adminPassword" placeholder="Password" autocomplete="current-password" required>
+    <p class="login-error" id="adminModalError" hidden></p>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="adminModalCancel">Cancel</button>
+      <button type="submit" class="btn-primary">Unlock</button>
+    </div>
+  </form>
+</div>
+
+<div class="modal-overlay" id="createServiceOverlay">
+  <form class="modal-card" id="createServiceForm">
+    <h2>Create service</h2>
+    <p>Writes a new systemd unit and starts it. This can run anything — double-check the command.</p>
+    <label>Name<input type="text" id="csUnit" placeholder="my-service" required></label>
+    <label>Description<input type="text" id="csDescription" placeholder="What this does"></label>
+    <label>Command<input type="text" id="csExecStart" placeholder="/usr/bin/python3 /opt/my-script.py" required></label>
+    <label>Working directory (optional)<input type="text" id="csWorkingDir" placeholder="/opt/my-service"></label>
+    <label>Run as user<input type="text" id="csUser" placeholder="root" value="root"></label>
+    <p class="login-error" id="createServiceError" hidden></p>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="createServiceCancel">Cancel</button>
+      <button type="submit" class="btn-primary">Create &amp; start</button>
+    </div>
+  </form>
+</div>
+
 <div class="app">
   <div class="header">
     <div class="mark" aria-hidden="true">
@@ -522,6 +643,10 @@ body{
     <div class="dashboard-head">
       <h2>VPS monitor</h2>
       <span class="hostname" id="dashboardHostname"></span>
+      <button class="admin-toggle" id="adminToggleBtn" aria-label="Toggle admin mode" title="Unlock start/stop/delete/create controls">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+        <span id="adminToggleLabel">Admin</span>
+      </button>
       <button class="icon-btn" id="dashboardRefreshBtn" aria-label="Refresh" title="Refresh now">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7M21 3v6h-6"/></svg>
       </button>
@@ -534,7 +659,10 @@ body{
       <div class="kpi-grid" id="kpiGrid"></div>
       <p class="dashboard-section-label">Trends (this session)</p>
       <div class="trend-grid" id="trendGrid"></div>
-      <p class="dashboard-section-label">Services</p>
+      <div class="section-head-row">
+        <p class="dashboard-section-label">Services</p>
+        <button class="btn-small" id="createServiceBtn" hidden>+ New service</button>
+      </div>
       <div class="services-grid" id="servicesGrid"></div>
 
       <p class="dashboard-section-label">Docker containers</p>
@@ -658,7 +786,7 @@ body{
   }
 
   function loadModels(){
-    fetch('/api/models').then(function(res){
+    apiFetch('/api/models').then(function(res){
       return res.json();
     }).then(function(data){
       if (Array.isArray(data.models) && data.models.length){
@@ -706,7 +834,29 @@ body{
     monthlyKpiWrap: document.getElementById('monthlyKpiWrap'),
     themeBtn: document.getElementById('themeBtn'),
     themeIconSun: document.getElementById('themeIconSun'),
-    themeIconMoon: document.getElementById('themeIconMoon')
+    themeIconMoon: document.getElementById('themeIconMoon'),
+    loginScreen: document.getElementById('loginScreen'),
+    loginForm: document.getElementById('loginForm'),
+    loginPassword: document.getElementById('loginPassword'),
+    loginError: document.getElementById('loginError'),
+    loginSubmitBtn: document.getElementById('loginSubmitBtn'),
+    adminToggleBtn: document.getElementById('adminToggleBtn'),
+    adminToggleLabel: document.getElementById('adminToggleLabel'),
+    adminModalOverlay: document.getElementById('adminModalOverlay'),
+    adminModalForm: document.getElementById('adminModalForm'),
+    adminPassword: document.getElementById('adminPassword'),
+    adminModalError: document.getElementById('adminModalError'),
+    adminModalCancel: document.getElementById('adminModalCancel'),
+    createServiceBtn: document.getElementById('createServiceBtn'),
+    createServiceOverlay: document.getElementById('createServiceOverlay'),
+    createServiceForm: document.getElementById('createServiceForm'),
+    createServiceError: document.getElementById('createServiceError'),
+    createServiceCancel: document.getElementById('createServiceCancel'),
+    csUnit: document.getElementById('csUnit'),
+    csDescription: document.getElementById('csDescription'),
+    csExecStart: document.getElementById('csExecStart'),
+    csWorkingDir: document.getElementById('csWorkingDir'),
+    csUser: document.getElementById('csUser')
   };
 
   var history = [];
@@ -725,8 +875,80 @@ body{
     safeSet('jarvis_session_id', sessionId);
   }
 
-  loadModels();
-  loadHistory();
+  var AUTH_TOKEN_KEY = 'jarvis_auth_token';
+  var ADMIN_MODE_KEY = 'jarvis_admin_mode';
+
+  function getAuthToken(){ return safeGet(AUTH_TOKEN_KEY); }
+  function setAuthToken(t){ safeSet(AUTH_TOKEN_KEY, t); }
+  function clearAuthToken(){ try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch(e){} }
+
+  function isAdminMode(){ try { return sessionStorage.getItem(ADMIN_MODE_KEY) === '1'; } catch(e){ return false; } }
+  function setAdminMode(on){
+    try { if (on) sessionStorage.setItem(ADMIN_MODE_KEY, '1'); else sessionStorage.removeItem(ADMIN_MODE_KEY); } catch(e){}
+    els.adminToggleBtn.classList.toggle('active', on);
+    els.adminToggleLabel.textContent = on ? 'Admin: on' : 'Admin';
+    els.createServiceBtn.hidden = !on;
+    if (lastVpsStatusData) renderDashboard(lastVpsStatusData);
+  }
+  var lastVpsStatusData = null;
+
+  function showLoginScreen(message){
+    els.loginError.hidden = !message;
+    els.loginError.textContent = message || '';
+    els.loginScreen.classList.add('open');
+  }
+  function hideLoginScreen(){
+    els.loginScreen.classList.remove('open');
+  }
+
+  function apiFetch(path, options){
+    options = options || {};
+    var headers = {};
+    for (var k in (options.headers || {})) headers[k] = options.headers[k];
+    var token = getAuthToken();
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    options.headers = headers;
+    return fetch(path, options).then(function(res){
+      if (res.status === 401 && path !== '/api/login'){
+        clearAuthToken();
+        showLoginScreen('Session expired — please log in again.');
+      }
+      return res;
+    });
+  }
+
+  function initApp(){
+    setAdminMode(isAdminMode());
+    loadModels();
+    loadHistory();
+  }
+
+  els.loginForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var password = els.loginPassword.value;
+    els.loginSubmitBtn && (els.loginSubmitBtn.disabled = true);
+    fetch('/api/login', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password: password})
+    }).then(function(res){
+      return res.json().then(function(data){ return {ok: res.ok, data: data}; });
+    }).then(function(r){
+      if (!r.ok){ showLoginScreen(r.data.error || 'Incorrect password.'); return; }
+      setAuthToken(r.data.token);
+      els.loginPassword.value = '';
+      hideLoginScreen();
+      initApp();
+    }).catch(function(){
+      showLoginScreen('Could not reach the server.');
+    }).finally(function(){
+      els.loginSubmitBtn.disabled = false;
+    });
+  });
+
+  if (getAuthToken()){
+    initApp();
+  } else {
+    showLoginScreen();
+  }
 
   var THEME_KEY = 'jarvis_theme';
   function getSystemTheme(){
@@ -806,6 +1028,68 @@ body{
   els.dashboardCloseBtn.addEventListener('click', closeDashboard);
   els.dashboardRefreshBtn.addEventListener('click', loadVpsStatus);
 
+  els.adminToggleBtn.addEventListener('click', function(){
+    if (isAdminMode()){
+      setAdminMode(false);
+      return;
+    }
+    els.adminModalError.hidden = true;
+    els.adminPassword.value = '';
+    els.adminModalOverlay.classList.add('open');
+    els.adminPassword.focus();
+  });
+  els.adminModalCancel.addEventListener('click', function(){
+    els.adminModalOverlay.classList.remove('open');
+  });
+  els.adminModalForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    fetch('/api/login', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({password: els.adminPassword.value})
+    }).then(function(res){ return res.json().then(function(data){ return {ok: res.ok, data: data}; }); })
+      .then(function(r){
+        if (!r.ok){ els.adminModalError.hidden = false; els.adminModalError.textContent = r.data.error || 'Incorrect password.'; return; }
+        els.adminModalOverlay.classList.remove('open');
+        setAdminMode(true);
+      }).catch(function(){
+        els.adminModalError.hidden = false; els.adminModalError.textContent = 'Could not reach the server.';
+      });
+  });
+
+  els.createServiceBtn.addEventListener('click', function(){
+    els.createServiceError.hidden = true;
+    els.createServiceForm.reset();
+    els.csUser.value = 'root';
+    els.createServiceOverlay.classList.add('open');
+  });
+  els.createServiceCancel.addEventListener('click', function(){
+    els.createServiceOverlay.classList.remove('open');
+  });
+  els.createServiceForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    apiFetch('/api/service-create', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        unit: els.csUnit.value.trim(),
+        description: els.csDescription.value.trim(),
+        exec_start: els.csExecStart.value.trim(),
+        working_directory: els.csWorkingDir.value.trim(),
+        user: els.csUser.value.trim() || 'root'
+      })
+    }).then(function(res){ return res.json().then(function(data){ return {ok: res.ok, data: data}; }); })
+      .then(function(r){
+        if (!r.ok || !r.data.ok){
+          els.createServiceError.hidden = false;
+          els.createServiceError.textContent = (r.data && r.data.output) || 'Failed to create service.';
+          return;
+        }
+        els.createServiceOverlay.classList.remove('open');
+        loadVpsStatus();
+      }).catch(function(){
+        els.createServiceError.hidden = false; els.createServiceError.textContent = 'Could not reach the server.';
+      });
+  });
+
   function formatUptime(seconds){
     var d = Math.floor(seconds / 86400);
     var h = Math.floor((seconds % 86400) / 3600);
@@ -861,12 +1145,24 @@ body{
       '<div class="trend-card"><div class="trend-label">CPU % (this session)</div>' + sparkline(history.map(function(s){return s.cpu_percent;})) + '</div>' +
       '<div class="trend-card"><div class="trend-label">Memory % (this session)</div>' + sparkline(history.map(function(s){return s.mem_percent;})) + '</div>';
 
+    var admin = isAdminMode();
+
+    function serviceActionsHtml(unit){
+      if (!admin) return '';
+      return '<div class="service-actions">' +
+        '<button data-unit="' + escapeHtml(unit) + '" data-action="start">Start</button>' +
+        '<button data-unit="' + escapeHtml(unit) + '" data-action="restart">Restart</button>' +
+        '<button data-unit="' + escapeHtml(unit) + '" data-action="stop">Stop</button>' +
+        '<button class="danger" data-unit="' + escapeHtml(unit) + '" data-delete="1">Delete</button></div>';
+    }
+
     var services = data.services || [];
     els.servicesGrid.innerHTML = services.length ? services.map(function(s){
       return '<div class="service-row"><span class="service-dot ' + (s.active ? 'active' : 'failed') + '"></span>' +
         '<div class="service-info"><div class="service-name">' + escapeHtml(s.description) + '</div>' +
         '<div class="service-unit">' + escapeHtml(s.unit) + '</div></div>' +
-        '<span class="service-state">' + (s.active ? 'active' : 'stopped') + '</span></div>';
+        '<span class="service-state">' + (s.active ? 'active' : 'stopped') + '</span>' +
+        serviceActionsHtml(s.unit) + '</div>';
     }).join('') : '<p class="tools-empty">No services detected.</p>';
 
     var containers = data.containers || [];
@@ -877,6 +1173,44 @@ body{
         '<div class="service-unit">' + escapeHtml(c.image) + '</div></div>' +
         '<span class="service-state">' + escapeHtml(c.status) + '</span></div>';
     }).join('') : '<p class="tools-empty">No containers running.</p>';
+
+    if (admin){
+      els.servicesGrid.querySelectorAll('button[data-action]').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var unit = btn.getAttribute('data-unit');
+          var action = btn.getAttribute('data-action');
+          if (!confirm(action + ' ' + unit + '?')) return;
+          runServiceControl(unit, action);
+        });
+      });
+      els.servicesGrid.querySelectorAll('button[data-delete]').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var unit = btn.getAttribute('data-unit');
+          if (!confirm('Delete ' + unit + '? This stops it, disables it, and removes its unit file.')) return;
+          runServiceDelete(unit);
+        });
+      });
+    }
+  }
+
+  function runServiceControl(unit, action){
+    apiFetch('/api/service-control', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({unit: unit, action: action})
+    }).then(function(res){ return res.json(); }).then(function(data){
+      if (!data.ok) alert('Failed: ' + (data.output || 'unknown error'));
+      loadVpsStatus();
+    }).catch(function(){ alert('Could not reach the server.'); });
+  }
+
+  function runServiceDelete(unit){
+    apiFetch('/api/service-delete', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({unit: unit})
+    }).then(function(res){ return res.json(); }).then(function(data){
+      if (!data.ok) alert('Failed: ' + (data.output || 'unknown error'));
+      loadVpsStatus();
+    }).catch(function(){ alert('Could not reach the server.'); });
   }
 
   function kpiTable(rows, keyLabel){
@@ -890,7 +1224,7 @@ body{
   }
 
   function loadVpsKpis(){
-    fetch('/api/vps-kpis').then(function(res){ return res.json(); }).then(function(data){
+    apiFetch('/api/vps-kpis').then(function(res){ return res.json(); }).then(function(data){
       els.dailyKpiWrap.innerHTML = kpiTable(data.daily || [], 'Date');
       els.monthlyKpiWrap.innerHTML = kpiTable(data.monthly || [], 'Month');
     }).catch(function(){
@@ -900,7 +1234,8 @@ body{
   }
 
   function loadVpsStatus(){
-    fetch('/api/vps-status').then(function(res){ return res.json(); }).then(function(data){
+    apiFetch('/api/vps-status').then(function(res){ return res.json(); }).then(function(data){
+      lastVpsStatusData = data;
       renderDashboard(data);
     }).catch(function(){
       els.dashboardUpdated.textContent = 'Could not reach the VPS status endpoint.';
@@ -909,7 +1244,7 @@ body{
 
   function loadToolsData(){
     toolsDataLoaded = true;
-    fetch('/api/tools').then(function(res){ return res.json(); }).then(function(data){
+    apiFetch('/api/tools').then(function(res){ return res.json(); }).then(function(data){
       toolsDataCache = data;
       renderTools(data);
       renderConnectorStatus(data);
@@ -948,7 +1283,7 @@ body{
   }
 
   function loadHistory(){
-    fetch('/api/history?session_id=' + encodeURIComponent(sessionId)).then(function(res){
+    apiFetch('/api/history?session_id=' + encodeURIComponent(sessionId)).then(function(res){
       return res.json();
     }).then(function(data){
       var msgs = Array.isArray(data.messages) ? data.messages : [];
@@ -1121,7 +1456,7 @@ body{
 
     var model = els.modelSelect.value;
 
-    fetch('/api/chat', {
+    apiFetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: model, messages: history, session_id: sessionId, attachments: attachments })
@@ -1157,7 +1492,7 @@ body{
     history = [];
     pendingAttachments = [];
     renderAttachments();
-    fetch('/api/history?session_id=' + encodeURIComponent(sessionId), {method: 'DELETE'}).catch(function(){});
+    apiFetch('/api/history?session_id=' + encodeURIComponent(sessionId), {method: 'DELETE'}).catch(function(){});
     els.messages.innerHTML = '';
     var es = document.createElement('div');
     es.className = 'empty-state';
