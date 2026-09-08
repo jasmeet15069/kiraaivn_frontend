@@ -400,10 +400,12 @@ body{
 .admin-toggle svg{width:14px;height:14px;}
 .admin-toggle.active{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
 
-.service-actions{display:flex;gap:5px;flex-shrink:0;}
+.service-actions{display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0;width:100%;}
+@media (min-width:520px){ .service-actions{width:auto;} }
 .service-actions button{
-  font-size:10.5px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;
+  font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer;
   background:var(--surface);border:1px solid var(--border);color:var(--text-muted);
+  white-space:nowrap;
 }
 .service-actions button:hover{color:var(--text);border-color:var(--accent);}
 .service-actions button.danger:hover{color:var(--danger);border-color:var(--danger);}
@@ -430,7 +432,7 @@ body{
 }
 .dashboard-head h2{margin:0;font-size:14px;font-weight:800;letter-spacing:-0.01em;flex:1;}
 .dashboard-head .hostname{font-size:11.5px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;}
-.dashboard-body{flex:1;overflow-y:auto;padding:18px 20px;}
+.dashboard-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:18px 20px;}
 .dashboard-updated{font-size:11px;color:var(--text-muted);margin-bottom:14px;}
 
 .kpi-grid{
@@ -486,19 +488,20 @@ body{
   grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
   gap:8px;
 }
+.services-list{display:flex;flex-direction:column;gap:8px;}
 .service-row{
-  display:flex;align-items:center;gap:9px;
+  display:flex;align-items:center;flex-wrap:wrap;gap:9px;
   background:var(--surface-2);border:1px solid var(--border);border-radius:9px;
   padding:9px 12px;font-size:12.5px;
 }
 .service-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--text-muted);}
 .service-dot.active{background:#3fb950;}
 .service-dot.inactive,.service-dot.failed{background:var(--danger);}
-.service-info{flex:1;min-width:0;}
-.service-name{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.service-info{flex:1 1 180px;min-width:140px;}
+.service-name{color:var(--text);overflow-wrap:anywhere;}
 .service-unit{
   font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-muted);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  overflow-wrap:anywhere;
 }
 .service-state{color:var(--text-muted);font-size:11px;text-transform:capitalize;flex-shrink:0;}
 .dashboard-section-label{
@@ -663,7 +666,7 @@ body{
         <p class="dashboard-section-label">Services</p>
         <button class="btn-small" id="createServiceBtn" hidden>+ New service</button>
       </div>
-      <div class="services-grid" id="servicesGrid"></div>
+      <div class="services-list" id="servicesGrid"></div>
 
       <p class="dashboard-section-label">Docker containers</p>
       <div class="services-grid" id="containersGrid"></div>
