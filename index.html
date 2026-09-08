@@ -409,19 +409,38 @@ body{
   gap:8px;
 }
 .service-row{
-  display:flex;align-items:center;gap:8px;
+  display:flex;align-items:center;gap:9px;
   background:var(--surface-2);border:1px solid var(--border);border-radius:9px;
   padding:9px 12px;font-size:12.5px;
 }
 .service-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--text-muted);}
 .service-dot.active{background:#3fb950;}
 .service-dot.inactive,.service-dot.failed{background:var(--danger);}
-.service-name{font-family:'JetBrains Mono',monospace;flex:1;}
-.service-state{color:var(--text-muted);font-size:11px;text-transform:capitalize;}
+.service-info{flex:1;min-width:0;}
+.service-name{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.service-unit{
+  font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.service-state{color:var(--text-muted);font-size:11px;text-transform:capitalize;flex-shrink:0;}
 .dashboard-section-label{
   font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
-  color:var(--text-muted);margin:0 0 8px;
+  color:var(--text-muted);margin:18px 0 8px;
 }
+.dashboard-section-label:first-of-type{margin-top:0;}
+
+.kpi-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;}
+.kpi-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap;}
+.kpi-table th,.kpi-table td{
+  padding:7px 12px;text-align:right;font-variant-numeric:tabular-nums;
+  border-bottom:1px solid var(--border);
+}
+.kpi-table th:first-child,.kpi-table td:first-child{text-align:left;font-family:'JetBrains Mono',monospace;}
+.kpi-table th{
+  background:var(--surface-2);font-size:10.5px;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.04em;color:var(--text-muted);
+}
+.kpi-table tr:last-child td{border-bottom:none;}
 .tools-last-used{
   font-size:12px;
   color:var(--text);
@@ -517,6 +536,15 @@ body{
       <div class="trend-grid" id="trendGrid"></div>
       <p class="dashboard-section-label">Services</p>
       <div class="services-grid" id="servicesGrid"></div>
+
+      <p class="dashboard-section-label">Docker containers</p>
+      <div class="services-grid" id="containersGrid"></div>
+
+      <p class="dashboard-section-label">Day-wise KPIs</p>
+      <div class="kpi-table-wrap" id="dailyKpiWrap"><p class="tools-empty">Loading…</p></div>
+
+      <p class="dashboard-section-label">Month-wise KPIs</p>
+      <div class="kpi-table-wrap" id="monthlyKpiWrap"><p class="tools-empty">Loading…</p></div>
     </div>
   </div>
 
@@ -673,6 +701,9 @@ body{
     kpiGrid: document.getElementById('kpiGrid'),
     trendGrid: document.getElementById('trendGrid'),
     servicesGrid: document.getElementById('servicesGrid'),
+    containersGrid: document.getElementById('containersGrid'),
+    dailyKpiWrap: document.getElementById('dailyKpiWrap'),
+    monthlyKpiWrap: document.getElementById('monthlyKpiWrap'),
     themeBtn: document.getElementById('themeBtn'),
     themeIconSun: document.getElementById('themeIconSun'),
     themeIconMoon: document.getElementById('themeIconMoon')
@@ -762,6 +793,7 @@ body{
     closeSidebars();
     els.dashboard.classList.add('open');
     loadVpsStatus();
+    loadVpsKpis();
     if (dashboardTimer) clearInterval(dashboardTimer);
     dashboardTimer = setInterval(loadVpsStatus, DASHBOARD_REFRESH_MS);
   }
@@ -829,14 +861,42 @@ body{
       '<div class="trend-card"><div class="trend-label">CPU % (this session)</div>' + sparkline(history.map(function(s){return s.cpu_percent;})) + '</div>' +
       '<div class="trend-card"><div class="trend-label">Memory % (this session)</div>' + sparkline(history.map(function(s){return s.mem_percent;})) + '</div>';
 
-    var services = data.services || {};
-    els.servicesGrid.innerHTML = Object.keys(services).map(function(name){
-      var state = services[name];
-      var dotClass = state === 'active' ? 'active' : (state === 'inactive' || state === 'failed' ? 'failed' : '');
-      return '<div class="service-row"><span class="service-dot ' + dotClass + '"></span>' +
-        '<span class="service-name">' + escapeHtml(name) + '</span>' +
-        '<span class="service-state">' + escapeHtml(state) + '</span></div>';
+    var services = data.services || [];
+    els.servicesGrid.innerHTML = services.length ? services.map(function(s){
+      return '<div class="service-row"><span class="service-dot ' + (s.active ? 'active' : 'failed') + '"></span>' +
+        '<div class="service-info"><div class="service-name">' + escapeHtml(s.description) + '</div>' +
+        '<div class="service-unit">' + escapeHtml(s.unit) + '</div></div>' +
+        '<span class="service-state">' + (s.active ? 'active' : 'stopped') + '</span></div>';
+    }).join('') : '<p class="tools-empty">No services detected.</p>';
+
+    var containers = data.containers || [];
+    els.containersGrid.innerHTML = containers.length ? containers.map(function(c){
+      var healthy = /healthy|up/i.test(c.status) && !/unhealthy/i.test(c.status);
+      return '<div class="service-row"><span class="service-dot ' + (healthy ? 'active' : 'failed') + '"></span>' +
+        '<div class="service-info"><div class="service-name">' + escapeHtml(c.name) + '</div>' +
+        '<div class="service-unit">' + escapeHtml(c.image) + '</div></div>' +
+        '<span class="service-state">' + escapeHtml(c.status) + '</span></div>';
+    }).join('') : '<p class="tools-empty">No containers running.</p>';
+  }
+
+  function kpiTable(rows, keyLabel){
+    if (!rows.length) return '<p class="tools-empty">No history yet — samples are recorded every 5 minutes, so this fills in over the next few hours.</p>';
+    var head = '<tr><th>' + keyLabel + '</th><th>CPU avg</th><th>CPU max</th><th>Mem avg</th><th>Mem max</th><th>Disk avg</th><th>Samples</th></tr>';
+    var body = rows.map(function(r){
+      return '<tr><td>' + escapeHtml(r.key) + '</td><td>' + r.cpu_avg + '%</td><td>' + r.cpu_max + '%</td>' +
+        '<td>' + r.mem_avg + '%</td><td>' + r.mem_max + '%</td><td>' + r.disk_avg + '%</td><td>' + r.samples + '</td></tr>';
     }).join('');
+    return '<table class="kpi-table">' + head + body + '</table>';
+  }
+
+  function loadVpsKpis(){
+    fetch('/api/vps-kpis').then(function(res){ return res.json(); }).then(function(data){
+      els.dailyKpiWrap.innerHTML = kpiTable(data.daily || [], 'Date');
+      els.monthlyKpiWrap.innerHTML = kpiTable(data.monthly || [], 'Month');
+    }).catch(function(){
+      els.dailyKpiWrap.innerHTML = '<p class="tools-empty">Could not load KPI history.</p>';
+      els.monthlyKpiWrap.innerHTML = '<p class="tools-empty">Could not load KPI history.</p>';
+    });
   }
 
   function loadVpsStatus(){
