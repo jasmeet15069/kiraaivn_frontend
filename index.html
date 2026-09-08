@@ -389,6 +389,39 @@ body{
 }
 .btn-small:hover{border-color:var(--accent);color:var(--accent);}
 
+.detail-card{max-width:560px;max-height:82vh;padding:0;overflow:hidden;}
+.detail-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:16px 20px;border-bottom:1px solid var(--border);
+}
+.detail-head h2{margin:0;font-size:15px;font-weight:800;overflow-wrap:anywhere;}
+#sdBody{padding:16px 20px 20px;overflow-y:auto;max-height:calc(82vh - 58px);display:flex;flex-direction:column;gap:14px;}
+.detail-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12.5px;}
+.detail-kv dt{color:var(--text-muted);font-weight:600;white-space:nowrap;}
+.detail-kv dd{margin:0;color:var(--text);font-family:'JetBrains Mono',monospace;overflow-wrap:anywhere;}
+.detail-badges{display:flex;flex-wrap:wrap;gap:6px;}
+.detail-badge{
+  font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 8px;border-radius:6px;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+}
+.workspace-panel{display:flex;flex-direction:column;gap:8px;}
+.workspace-breadcrumb{
+  display:flex;flex-wrap:wrap;align-items:center;gap:4px;
+  font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text-muted);
+}
+.workspace-breadcrumb button{
+  background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;padding:2px 4px;border-radius:4px;
+}
+.workspace-breadcrumb button:hover{background:var(--surface-2);}
+.workspace-breadcrumb span.sep{color:var(--text-muted);}
+.ws-size{color:var(--text-muted);font-size:11px;flex-shrink:0;font-family:'JetBrains Mono',monospace;}
+.detail-log{
+  font-family:'JetBrains Mono',monospace;font-size:10.5px;line-height:1.6;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+  padding:10px;max-height:220px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;
+  color:var(--text-muted);
+}
+
 .section-head-row{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px;}
 .section-head-row .dashboard-section-label{margin:0;}
 
@@ -494,6 +527,8 @@ body{
   background:var(--surface-2);border:1px solid var(--border);border-radius:9px;
   padding:9px 12px;font-size:12.5px;
 }
+.service-row.clickable{cursor:pointer;transition:border-color 0.15s ease;}
+.service-row.clickable:hover{border-color:var(--accent);}
 .service-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--text-muted);}
 .service-dot.active{background:#3fb950;}
 .service-dot.inactive,.service-dot.failed{background:var(--danger);}
@@ -612,6 +647,18 @@ body{
   </form>
 </div>
 
+<div class="modal-overlay" id="serviceDetailOverlay">
+  <div class="modal-card detail-card">
+    <div class="detail-head">
+      <h2 id="sdTitle">Service</h2>
+      <button type="button" class="icon-btn" id="serviceDetailClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="sdBody"><p class="tools-empty">Loading…</p></div>
+  </div>
+</div>
+
 <div class="app">
   <div class="header">
     <div class="mark" aria-hidden="true">
@@ -670,6 +717,12 @@ body{
 
       <p class="dashboard-section-label">Docker containers</p>
       <div class="services-grid" id="containersGrid"></div>
+
+      <p class="dashboard-section-label">Workspace</p>
+      <div class="workspace-panel">
+        <div class="workspace-breadcrumb" id="wsBreadcrumb"></div>
+        <div class="services-list" id="wsList"><p class="tools-empty">Loading…</p></div>
+      </div>
 
       <p class="dashboard-section-label">Day-wise KPIs</p>
       <div class="kpi-table-wrap" id="dailyKpiWrap"><p class="tools-empty">Loading…</p></div>
@@ -859,7 +912,13 @@ body{
     csDescription: document.getElementById('csDescription'),
     csExecStart: document.getElementById('csExecStart'),
     csWorkingDir: document.getElementById('csWorkingDir'),
-    csUser: document.getElementById('csUser')
+    csUser: document.getElementById('csUser'),
+    serviceDetailOverlay: document.getElementById('serviceDetailOverlay'),
+    serviceDetailClose: document.getElementById('serviceDetailClose'),
+    sdTitle: document.getElementById('sdTitle'),
+    sdBody: document.getElementById('sdBody'),
+    wsBreadcrumb: document.getElementById('wsBreadcrumb'),
+    wsList: document.getElementById('wsList')
   };
 
   var history = [];
@@ -1019,6 +1078,7 @@ body{
     els.dashboard.classList.add('open');
     loadVpsStatus();
     loadVpsKpis();
+    loadWorkspace('');
     if (dashboardTimer) clearInterval(dashboardTimer);
     dashboardTimer = setInterval(loadVpsStatus, DASHBOARD_REFRESH_MS);
   }
@@ -1093,6 +1153,168 @@ body{
       });
   });
 
+  els.serviceDetailClose.addEventListener('click', function(){
+    els.serviceDetailOverlay.classList.remove('open');
+  });
+  els.serviceDetailOverlay.addEventListener('click', function(e){
+    if (e.target === els.serviceDetailOverlay) els.serviceDetailOverlay.classList.remove('open');
+  });
+
+  function kv(label, value){
+    if (value === null || value === undefined || value === '') return '';
+    return '<dt>' + escapeHtml(label) + '</dt><dd>' + escapeHtml(value) + '</dd>';
+  }
+
+  function openServiceDetail(unit){
+    els.sdTitle.textContent = unit;
+    els.sdBody.innerHTML = '<p class="tools-empty">Loading…</p>';
+    els.serviceDetailOverlay.classList.add('open');
+
+    apiFetch('/api/service-detail?unit=' + encodeURIComponent(unit)).then(function(res){
+      return res.json().then(function(data){ return {ok: res.ok, data: data}; });
+    }).then(function(r){
+      if (!r.ok || r.data.error){
+        els.sdBody.innerHTML = '<p class="tools-empty">' + escapeHtml((r.data && r.data.error) || 'Could not load details.') + '</p>';
+        return;
+      }
+      var d = r.data;
+      els.sdTitle.textContent = d.description || d.unit;
+
+      var ports = (d.ports || []).length
+        ? '<div class="detail-badges">' + d.ports.map(function(p){ return '<span class="detail-badge">' + escapeHtml(p) + '</span>'; }).join('') + '</div>'
+        : '<p class="tools-empty" style="margin:0;">Not listening on any port.</p>';
+
+      var info = '<dl class="detail-kv">' +
+        kv('Unit', d.unit) +
+        kv('State', d.active_state + (d.sub_state ? ' (' + d.sub_state + ')' : '')) +
+        kv('PID', d.main_pid) +
+        kv('Command', d.exec_start) +
+        kv('Working dir', d.working_directory) +
+        kv('User', d.user) +
+        kv('Since', d.active_since) +
+        kv('Memory', d.memory_mb != null ? d.memory_mb + ' MB' : null) +
+        kv('Restart policy', d.restart_policy) +
+        kv('Unit file', d.unit_file) +
+        '</dl>';
+
+      var logs = (d.recent_logs || []).length
+        ? '<div class="detail-log">' + escapeHtml(d.recent_logs.join('\n')) + '</div>'
+        : '<p class="tools-empty" style="margin:0;">No recent log lines.</p>';
+
+      els.sdBody.innerHTML =
+        '<div><p class="dashboard-section-label">Listening on</p>' + ports + '</div>' +
+        '<div><p class="dashboard-section-label">Details</p>' + info + '</div>' +
+        '<div><p class="dashboard-section-label">Recent logs</p>' + logs + '</div>';
+    }).catch(function(){
+      els.sdBody.innerHTML = '<p class="tools-empty">Could not reach the server.</p>';
+    });
+  }
+
+  var wsCurrentPath = '';
+
+  function formatBytes(n){
+    if (n == null) return '';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function renderBreadcrumb(path){
+    var parts = path ? path.split('/').filter(Boolean) : [];
+    var html = '<button data-path="">workspace</button>';
+    var acc = '';
+    parts.forEach(function(part){
+      acc = acc ? acc + '/' + part : part;
+      html += '<span class="sep">/</span><button data-path="' + escapeHtml(acc) + '">' + escapeHtml(part) + '</button>';
+    });
+    els.wsBreadcrumb.innerHTML = html;
+    els.wsBreadcrumb.querySelectorAll('button').forEach(function(btn){
+      btn.addEventListener('click', function(){ loadWorkspace(btn.getAttribute('data-path')); });
+    });
+  }
+
+  function loadWorkspace(path){
+    wsCurrentPath = path || '';
+    renderBreadcrumb(wsCurrentPath);
+    els.wsList.innerHTML = '<p class="tools-empty">Loading…</p>';
+    apiFetch('/api/workspace?path=' + encodeURIComponent(wsCurrentPath)).then(function(res){
+      return res.json().then(function(data){ return {ok: res.ok, data: data}; });
+    }).then(function(r){
+      if (!r.ok || r.data.error){
+        els.wsList.innerHTML = '<p class="tools-empty">' + escapeHtml((r.data && r.data.error) || 'Could not load workspace.') + '</p>';
+        return;
+      }
+      var entries = r.data.entries || [];
+      if (!entries.length){
+        els.wsList.innerHTML = '<p class="tools-empty">Empty — Jarvis creates a new timestamped folder here for each thing it makes.</p>';
+        return;
+      }
+      entries.sort(function(a, b){
+        if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+      els.wsList.innerHTML = entries.map(function(e){
+        var full = wsCurrentPath ? wsCurrentPath + '/' + e.name : e.name;
+        var icon = e.is_dir ? 'active' : '';
+        return '<div class="service-row clickable" data-path="' + escapeHtml(full) + '" data-dir="' + (e.is_dir ? '1' : '0') + '">' +
+          '<span class="service-dot ' + icon + '"></span>' +
+          '<div class="service-info"><div class="service-name">' + escapeHtml(e.name) + (e.is_dir ? '/' : '') + '</div></div>' +
+          '<span class="ws-size">' + (e.is_dir ? '' : formatBytes(e.size)) + '</span></div>';
+      }).join('');
+      els.wsList.querySelectorAll('.service-row').forEach(function(row){
+        row.addEventListener('click', function(){
+          var path = row.getAttribute('data-path');
+          if (row.getAttribute('data-dir') === '1') loadWorkspace(path);
+          else openWorkspaceFile(path);
+        });
+      });
+    }).catch(function(){
+      els.wsList.innerHTML = '<p class="tools-empty">Could not reach the server.</p>';
+    });
+  }
+
+  function openWorkspaceFile(path){
+    els.sdTitle.textContent = path;
+    els.sdBody.innerHTML = '<p class="tools-empty">Loading…</p>';
+    els.serviceDetailOverlay.classList.add('open');
+
+    apiFetch('/api/workspace/file?path=' + encodeURIComponent(path)).then(function(res){
+      return res.json().then(function(data){ return {ok: res.ok, data: data}; });
+    }).then(function(r){
+      var downloadHtml = '<button type="button" class="btn-small" id="wsDownloadBtn">Download</button>';
+      if (!r.ok || r.data.error){
+        els.sdBody.innerHTML = '<p class="tools-empty">' + escapeHtml((r.data && r.data.error) || 'Could not preview this file.') + '</p>' + downloadHtml;
+      } else {
+        els.sdBody.innerHTML =
+          '<p class="dashboard-updated" style="margin:0;">' + formatBytes(r.data.size) + '</p>' +
+          '<div class="detail-log" style="max-height:400px;">' + escapeHtml(r.data.content) + '</div>' +
+          downloadHtml;
+      }
+      var btn = document.getElementById('wsDownloadBtn');
+      if (btn) btn.addEventListener('click', function(){ downloadWorkspaceFile(path); });
+    }).catch(function(){
+      els.sdBody.innerHTML = '<p class="tools-empty">Could not reach the server.</p>';
+    });
+  }
+
+  function downloadWorkspaceFile(path){
+    apiFetch('/api/workspace/raw?path=' + encodeURIComponent(path)).then(function(res){
+      if (!res.ok) throw new Error('download failed');
+      return res.blob();
+    }).then(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = path.split('/').pop();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+    }).catch(function(){
+      alert('Could not download that file.');
+    });
+  }
+
   function formatUptime(seconds){
     var d = Math.floor(seconds / 86400);
     var h = Math.floor((seconds % 86400) / 3600);
@@ -1161,12 +1383,18 @@ body{
 
     var services = data.services || [];
     els.servicesGrid.innerHTML = services.length ? services.map(function(s){
-      return '<div class="service-row"><span class="service-dot ' + (s.active ? 'active' : 'failed') + '"></span>' +
+      return '<div class="service-row clickable" data-unit="' + escapeHtml(s.unit) + '"><span class="service-dot ' + (s.active ? 'active' : 'failed') + '"></span>' +
         '<div class="service-info"><div class="service-name">' + escapeHtml(s.description) + '</div>' +
         '<div class="service-unit">' + escapeHtml(s.unit) + '</div></div>' +
         '<span class="service-state">' + (s.active ? 'active' : 'stopped') + '</span>' +
         serviceActionsHtml(s.unit) + '</div>';
     }).join('') : '<p class="tools-empty">No services detected.</p>';
+
+    els.servicesGrid.querySelectorAll('.service-row.clickable').forEach(function(row){
+      row.addEventListener('click', function(){
+        openServiceDetail(row.getAttribute('data-unit'));
+      });
+    });
 
     var containers = data.containers || [];
     els.containersGrid.innerHTML = containers.length ? containers.map(function(c){
@@ -1179,7 +1407,8 @@ body{
 
     if (admin){
       els.servicesGrid.querySelectorAll('button[data-action]').forEach(function(btn){
-        btn.addEventListener('click', function(){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
           var unit = btn.getAttribute('data-unit');
           var action = btn.getAttribute('data-action');
           if (!confirm(action + ' ' + unit + '?')) return;
@@ -1187,7 +1416,8 @@ body{
         });
       });
       els.servicesGrid.querySelectorAll('button[data-delete]').forEach(function(btn){
-        btn.addEventListener('click', function(){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
           var unit = btn.getAttribute('data-unit');
           if (!confirm('Delete ' + unit + '? This stops it, disables it, and removes its unit file.')) return;
           runServiceDelete(unit);
