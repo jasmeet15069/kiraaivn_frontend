@@ -329,6 +329,99 @@ body{
   font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:4px;
   background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);
 }
+
+.dashboard{
+  position:absolute;
+  inset:0;
+  background:var(--surface);
+  display:flex;
+  flex-direction:column;
+  transform:translateY(100%);
+  visibility:hidden;
+  transition:transform 0.22s ease, visibility 0s linear 0.22s;
+  z-index:6;
+}
+.dashboard.open{
+  transform:translateY(0);
+  visibility:visible;
+  transition:transform 0.22s ease, visibility 0s linear 0s;
+}
+.dashboard-head{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.dashboard-head h2{margin:0;font-size:14px;font-weight:800;letter-spacing:-0.01em;flex:1;}
+.dashboard-head .hostname{font-size:11.5px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;}
+.dashboard-body{flex:1;overflow-y:auto;padding:18px 20px;}
+.dashboard-updated{font-size:11px;color:var(--text-muted);margin-bottom:14px;}
+
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
+  gap:10px;
+  margin-bottom:18px;
+}
+.kpi-tile{
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.kpi-tile .kpi-label{
+  font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
+  color:var(--text-muted);
+}
+.kpi-tile .kpi-value{
+  font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;
+  letter-spacing:-0.02em;color:var(--text);
+}
+.kpi-tile .kpi-sub{font-size:11.5px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;}
+.kpi-bar{
+  height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:2px;
+}
+.kpi-bar-fill{height:100%;border-radius:3px;background:var(--accent);transition:width 0.4s ease;}
+.kpi-bar-fill.warn{background:#d99a2b;}
+.kpi-bar-fill.crit{background:var(--danger);}
+
+.trend-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+  gap:10px;
+  margin-bottom:18px;
+}
+.trend-card{
+  background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;
+}
+.trend-card .trend-label{
+  font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
+  color:var(--text-muted);margin-bottom:6px;
+}
+.trend-card svg{width:100%;height:44px;display:block;}
+.trend-card polyline{fill:none;stroke:var(--accent);stroke-width:2;}
+.trend-card .trend-fill{fill:var(--accent);opacity:0.12;stroke:none;}
+
+.services-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+  gap:8px;
+}
+.service-row{
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:9px;
+  padding:9px 12px;font-size:12.5px;
+}
+.service-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--text-muted);}
+.service-dot.active{background:#3fb950;}
+.service-dot.inactive,.service-dot.failed{background:var(--danger);}
+.service-name{font-family:'JetBrains Mono',monospace;flex:1;}
+.service-state{color:var(--text-muted);font-size:11px;text-transform:capitalize;}
+.dashboard-section-label{
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
+  color:var(--text-muted);margin:0 0 8px;
+}
 .tools-last-used{
   font-size:12px;
   color:var(--text);
@@ -393,6 +486,9 @@ body{
       <button class="icon-btn" id="connectorBtn" aria-label="System connector" title="System connector">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="8" height="6" rx="1"/><rect x="14" y="9" width="8" height="6" rx="1"/><path d="M10 12h4"/></svg>
       </button>
+      <button class="icon-btn" id="dashboardBtn" aria-label="VPS monitor" title="VPS monitor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      </button>
       <button class="icon-btn" id="themeBtn" aria-label="Toggle light/dark theme" title="Toggle theme">
         <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg id="themeIconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
@@ -400,6 +496,27 @@ body{
       <button class="icon-btn" id="clearBtn" aria-label="Clear conversation" title="Clear conversation">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
       </button>
+    </div>
+  </div>
+
+  <div class="dashboard" id="dashboard">
+    <div class="dashboard-head">
+      <h2>VPS monitor</h2>
+      <span class="hostname" id="dashboardHostname"></span>
+      <button class="icon-btn" id="dashboardRefreshBtn" aria-label="Refresh" title="Refresh now">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7M21 3v6h-6"/></svg>
+      </button>
+      <button class="icon-btn" id="dashboardCloseBtn" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="dashboard-body">
+      <div class="dashboard-updated" id="dashboardUpdated">Loading…</div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <p class="dashboard-section-label">Trends (this session)</p>
+      <div class="trend-grid" id="trendGrid"></div>
+      <p class="dashboard-section-label">Services</p>
+      <div class="services-grid" id="servicesGrid"></div>
     </div>
   </div>
 
@@ -429,16 +546,19 @@ body{
       <div id="connectorStatusList"><p class="tools-empty">Loading…</p></div>
       <div class="connector-guide">
         <h3>Connect your laptop (or any other machine)</h3>
+        <p>No SSH, no exposed ports, no router changes — your laptop makes an <strong>outbound-only</strong> connection to Jarvis and stays connected. Jarvis can never dial in on its own.</p>
         <ol>
-          <li>Install <a href="https://tailscale.com/download" target="_blank" rel="noopener">Tailscale</a> on your laptop and sign in — it gives devices a private IP that's reachable with no port forwarding or router changes.</li>
-          <li>Install Tailscale on this backend's VPS too, signed into the <strong>same</strong> account:
-            <pre>curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up</pre>
+          <li>Download <code>agent_client.py</code> from the <a href="https://github.com/jasmeet15069/kiraaivn_backend/blob/main/agent_client.py" target="_blank" rel="noopener">backend repo</a> onto the laptop.</li>
+          <li>Install its one dependency: <pre>pip install aiohttp</pre></li>
+          <li>Get a connection token from whoever runs the backend (it lives in the server's <code>.env</code>, never in this page or any repo).</li>
+          <li>Run it, and leave the window open — closing it instantly cuts Jarvis's access:
+            <pre>python agent_client.py \
+  --url wss://kira-chat.167-233-158-179.sslip.io/agent-ws \
+  --name my-laptop --token YOUR_TOKEN</pre>
           </li>
-          <li>On the laptop, turn on an SSH server — Windows: Settings → Apps → Optional features → OpenSSH Server; macOS: System Settings → General → Sharing → Remote Login; Linux: <code>sudo systemctl enable --now sshd</code>.</li>
-          <li>Create a separate, limited OS user on the laptop for Jarvis to log in as (not your normal account), and a dedicated SSH key pair for it. Add the public key to that user's <code>authorized_keys</code>.</li>
-          <li>Send the connector a name, the laptop's Tailscale IP, that username, and the private key file — they get added to <code>connectors.json</code> and the backend's <code>.env</code>, never into the frontend or any repo.</li>
+          <li>Tell Jarvis (or whoever manages the backend) the name you chose, e.g. <code>my-laptop</code> — it gets added to <code>connectors.json</code> so it shows up here once connected.</li>
         </ol>
+        <p>Every command it's asked to run prints in that terminal window as it happens — that's your live audit log.</p>
       </div>
     </div>
   </div>
@@ -544,6 +664,15 @@ tailscale up</pre>
     connectorCloseBtn: document.getElementById('connectorCloseBtn'),
     connectorStatusList: document.getElementById('connectorStatusList'),
     sidebarOverlay: document.getElementById('sidebarOverlay'),
+    dashboardBtn: document.getElementById('dashboardBtn'),
+    dashboard: document.getElementById('dashboard'),
+    dashboardCloseBtn: document.getElementById('dashboardCloseBtn'),
+    dashboardRefreshBtn: document.getElementById('dashboardRefreshBtn'),
+    dashboardHostname: document.getElementById('dashboardHostname'),
+    dashboardUpdated: document.getElementById('dashboardUpdated'),
+    kpiGrid: document.getElementById('kpiGrid'),
+    trendGrid: document.getElementById('trendGrid'),
+    servicesGrid: document.getElementById('servicesGrid'),
     themeBtn: document.getElementById('themeBtn'),
     themeIconSun: document.getElementById('themeIconSun'),
     themeIconMoon: document.getElementById('themeIconMoon')
@@ -603,6 +732,7 @@ tailscale up</pre>
   var toolsDataCache = null;
 
   function openSidebar(sidebarEl){
+    closeDashboard();
     els.toolsSidebar.classList.toggle('open', sidebarEl === els.toolsSidebar);
     els.connectorSidebar.classList.toggle('open', sidebarEl === els.connectorSidebar);
     els.sidebarOverlay.classList.add('open');
@@ -625,6 +755,98 @@ tailscale up</pre>
   els.connectorCloseBtn.addEventListener('click', closeSidebars);
   els.sidebarOverlay.addEventListener('click', closeSidebars);
 
+  var dashboardTimer = null;
+  var DASHBOARD_REFRESH_MS = 8000;
+
+  function openDashboard(){
+    closeSidebars();
+    els.dashboard.classList.add('open');
+    loadVpsStatus();
+    if (dashboardTimer) clearInterval(dashboardTimer);
+    dashboardTimer = setInterval(loadVpsStatus, DASHBOARD_REFRESH_MS);
+  }
+  function closeDashboard(){
+    els.dashboard.classList.remove('open');
+    if (dashboardTimer) { clearInterval(dashboardTimer); dashboardTimer = null; }
+  }
+
+  els.dashboardBtn.addEventListener('click', openDashboard);
+  els.dashboardCloseBtn.addEventListener('click', closeDashboard);
+  els.dashboardRefreshBtn.addEventListener('click', loadVpsStatus);
+
+  function formatUptime(seconds){
+    var d = Math.floor(seconds / 86400);
+    var h = Math.floor((seconds % 86400) / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    if (d > 0) return d + 'd ' + h + 'h';
+    if (h > 0) return h + 'h ' + m + 'm';
+    return m + 'm';
+  }
+
+  function barClass(percent){
+    if (percent >= 90) return 'crit';
+    if (percent >= 70) return 'warn';
+    return '';
+  }
+
+  function kpiTile(label, value, sub, percent){
+    var bar = (percent == null) ? '' :
+      '<div class="kpi-bar"><div class="kpi-bar-fill ' + barClass(percent) + '" style="width:' + Math.min(percent, 100) + '%"></div></div>';
+    return '<div class="kpi-tile"><div class="kpi-label">' + escapeHtml(label) + '</div>' +
+      '<div class="kpi-value">' + escapeHtml(value) + '</div>' +
+      (sub ? '<div class="kpi-sub">' + escapeHtml(sub) + '</div>' : '') + bar + '</div>';
+  }
+
+  function sparkline(values, max){
+    max = max || 100;
+    var w = 200, h = 44;
+    if (!values.length) return '<svg viewBox="0 0 ' + w + ' ' + h + '"></svg>';
+    var n = values.length;
+    var points = values.map(function(v, i){
+      var x = n === 1 ? w : (i / (n - 1)) * w;
+      var y = h - Math.min(v / max, 1) * (h - 4) - 2;
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    var fillPoints = points.concat([w + ',' + h, '0,' + h]).join(' ');
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+      '<polygon class="trend-fill" points="' + fillPoints + '"></polygon>' +
+      '<polyline points="' + points.join(' ') + '"></polyline></svg>';
+  }
+
+  function renderDashboard(data){
+    els.dashboardHostname.textContent = data.hostname || '';
+    els.dashboardUpdated.textContent = 'Updated ' + new Date(data.timestamp * 1000).toLocaleTimeString();
+
+    els.kpiGrid.innerHTML = [
+      kpiTile('CPU', data.cpu_percent.toFixed(0) + '%', 'load ' + data.load_avg['1m'] + ' · ' + data.cpu_count + ' cores', data.cpu_percent),
+      kpiTile('Memory', data.memory.percent.toFixed(0) + '%', data.memory.used_mb.toFixed(0) + ' / ' + data.memory.total_mb.toFixed(0) + ' MB', data.memory.percent),
+      kpiTile('Disk', data.disk.percent.toFixed(0) + '%', data.disk.used_gb.toFixed(1) + ' / ' + data.disk.total_gb.toFixed(1) + ' GB', data.disk.percent),
+      kpiTile('Uptime', formatUptime(data.uptime_seconds), 'load avg ' + data.load_avg['1m'] + ' / ' + data.load_avg['5m'] + ' / ' + data.load_avg['15m'], null)
+    ].join('');
+
+    var history = data.history || [];
+    els.trendGrid.innerHTML =
+      '<div class="trend-card"><div class="trend-label">CPU % (this session)</div>' + sparkline(history.map(function(s){return s.cpu_percent;})) + '</div>' +
+      '<div class="trend-card"><div class="trend-label">Memory % (this session)</div>' + sparkline(history.map(function(s){return s.mem_percent;})) + '</div>';
+
+    var services = data.services || {};
+    els.servicesGrid.innerHTML = Object.keys(services).map(function(name){
+      var state = services[name];
+      var dotClass = state === 'active' ? 'active' : (state === 'inactive' || state === 'failed' ? 'failed' : '');
+      return '<div class="service-row"><span class="service-dot ' + dotClass + '"></span>' +
+        '<span class="service-name">' + escapeHtml(name) + '</span>' +
+        '<span class="service-state">' + escapeHtml(state) + '</span></div>';
+    }).join('');
+  }
+
+  function loadVpsStatus(){
+    fetch('/api/vps-status').then(function(res){ return res.json(); }).then(function(data){
+      renderDashboard(data);
+    }).catch(function(){
+      els.dashboardUpdated.textContent = 'Could not reach the VPS status endpoint.';
+    });
+  }
+
   function loadToolsData(){
     toolsDataLoaded = true;
     fetch('/api/tools').then(function(res){ return res.json(); }).then(function(data){
@@ -638,13 +860,13 @@ tailscale up</pre>
   }
 
   function renderTools(data){
-    var groups = {memory: [], sandbox: [], mcp: []};
+    var groups = {task: [], memory: [], sandbox: [], mcp: []};
     (data.tools || []).forEach(function(t){
       if (groups[t.category]) groups[t.category].push(t);
     });
-    var labels = {memory: 'Memory', sandbox: 'Sandbox', mcp: 'MCP connector'};
+    var labels = {task: 'Background tasks', memory: 'Memory', sandbox: 'Sandbox', mcp: 'MCP connector'};
     var html = '';
-    ['memory', 'sandbox', 'mcp'].forEach(function(cat){
+    ['task', 'memory', 'sandbox', 'mcp'].forEach(function(cat){
       if (!groups[cat].length) return;
       html += '<div class="tools-group"><h3>' + labels[cat] + '</h3>' + groups[cat].map(function(t){
         return '<div class="tool-item"><div class="tool-name">' + escapeHtml(t.name) +
@@ -657,11 +879,11 @@ tailscale up</pre>
   function renderConnectorStatus(data){
     if (data.connectors && data.connectors.length){
       els.connectorStatusList.innerHTML = data.connectors.map(function(c){
-        var status = data.connectors_active ? 'Active.' : 'Configured, but execution is not wired up yet.';
-        return '<div class="connector-status"><strong>' + escapeHtml(c) + '</strong> — ' + status + '</div>';
+        var status = c.connected ? '🟢 Connected' : '⚪ Registered, but not connected right now';
+        return '<div class="connector-status"><strong>' + escapeHtml(c.name) + '</strong> — ' + status + '</div>';
       }).join('');
     } else {
-      els.connectorStatusList.innerHTML = '<p class="connector-status">No external systems connected yet. This VPS itself is never a valid target — only machines you explicitly register below.</p>';
+      els.connectorStatusList.innerHTML = '<p class="connector-status">No external systems registered yet. This VPS itself is never a valid target — only machines you explicitly register below.</p>';
     }
   }
 
