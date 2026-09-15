@@ -110,11 +110,30 @@
   const SAME_ORIGIN = LOCAL || location.hostname.endsWith("sslip.io");
   const BACKEND = (Q.get("host") || "kira-chat.167-233-158-179.sslip.io/macbook")
                     .replace(/^wss?:\/\//, "").replace(/\/$/, "");
+  // The dashboard API. On vercel.app it is same-origin thanks to that app's
+  // existing /api/* rewrite; on sslip.io it is same-origin directly. Only the
+  // Mac-served copy has to reach out, and CORS on /api/* already allows it.
+  const API_BASE = LOCAL ? "https://kira-chat.167-233-158-179.sslip.io" : "";
+
   const WS_URL = SAME_ORIGIN
     ? (location.protocol === "https:" ? "wss://" : "ws://")
         + location.host + location.pathname.replace(/\/$/, "")
         + "/ws?token=" + encodeURIComponent(TOKEN)
     : "wss://" + BACKEND + "/ws?token=" + encodeURIComponent(TOKEN);
+  const HEALTH_URL = SAME_ORIGIN
+    ? location.pathname.replace(/\/$/, "") + "/health?token=" + encodeURIComponent(TOKEN)
+    : "https://" + BACKEND + "/health?token=" + encodeURIComponent(TOKEN);
+
+  // A failed websocket handshake gives close code 1006 whether the key was
+  // rejected or the Mac is simply gone — no status to read. /health does
+  // return one (and echoes CORS for exactly this), so ask it why.
+  async function diagnose(){
+    try {
+      const r = await fetch(HEALTH_URL, {cache: "no-store"});
+      if (r.status === 401) return "badkey";
+      return r.ok ? "ok" : "unreachable";
+    } catch (e) { return "unreachable"; }
+  }
 
   let ws = null, allowInput = false;
   let imgW = 0, imgH = 0;              // natural size of incoming frames
@@ -168,10 +187,20 @@
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => { setState("live","on"); $("msg").style.display="none"; };
-    ws.onclose = () => { setState("disconnected","off");
+    ws.onclose = async () => {
+      setState("disconnected","off");
+      if (await diagnose() === "badkey") {
+        // Rotated or revoked. Reconnecting forever would just spin, so stop
+        // and say the true reason instead of blaming a sleeping laptop.
+        try { localStorage.removeItem("jarvis_screen_token"); } catch (e) {}
+        askForToken("That key is no longer valid — it was most likely rotated. "
+                    + "Enter your password to get the new one.");
+        return;
+      }
       $("msg").style.display="flex";
       $("msg").textContent="Disconnected — the MacBook may be asleep or the stream stopped. Reconnecting…";
-      setTimeout(connect, 2500); };
+      setTimeout(connect, 2500);
+    };
     ws.onerror = () => setState("error","off");
 
     ws.onmessage = async (ev) => {
@@ -311,28 +340,56 @@
   $("btn-right").onclick = () => { send({type:"rclick", x:cur.x, y:cur.y}); toast("right click"); };
   $("btn-fit").onclick   = () => { fit(); toast("fitted"); };
 
-  function askForToken(){
+  function askForToken(msg){
+    setState("password needed", "");
     const m = $("msg");
     m.style.display = "flex";
     m.innerHTML =
-      '<div style="max-width:320px">' +
-      '<div style="font-weight:700;color:var(--txt);margin-bottom:6px">Access key needed</div>' +
-      '<div style="margin-bottom:12px">Paste the MacBook\'s screen token. It is stored on this ' +
-      'device only, so you only do this once.</div>' +
-      '<input id="tok-in" type="password" autocomplete="off" placeholder="screen token" ' +
+      '<div style="max-width:330px">' +
+      '<div style="font-weight:700;color:var(--txt);margin-bottom:6px">Unlock MacBook control</div>' +
+      '<div style="margin-bottom:12px">' + (msg ||
+        'Enter your dashboard password. The screen key itself never leaves the ' +
+        'server \u2014 it is fetched for you and kept on this device.') + '</div>' +
+      '<input id="tok-in" type="password" autocomplete="current-password" placeholder="password" ' +
       'style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);' +
       'background:#0d1017;color:var(--txt);font-size:14px;margin-bottom:8px">' +
       '<button id="tok-go" style="width:100%;padding:10px;background:var(--accent);' +
-      'border-color:var(--accent);color:#fff">Connect</button></div>';
-    const go = () => {
-      const v = document.getElementById("tok-in").value.trim();
-      if (!v) return;
-      try { localStorage.setItem("jarvis_screen_token", v); } catch (e) {}
-      location.replace(location.pathname);   // reload clean, no token in the URL
+      'border-color:var(--accent);color:#fff">Unlock</button>' +
+      '<div id="tok-err" style="color:var(--bad);margin-top:8px;min-height:16px"></div></div>';
+
+    const err = t => { document.getElementById("tok-err").textContent = t || ""; };
+
+    const go = async () => {
+      const pw = document.getElementById("tok-in").value;
+      if (!pw) return;
+      err(""); document.getElementById("tok-go").textContent = "Unlocking…";
+      try {
+        // 1. exchange the password for a session bearer
+        const r = await fetch(API_BASE + "/api/login", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({password: pw})
+        });
+        if (!r.ok) throw new Error("Incorrect password.");
+        const bearer = (await r.json()).token;
+        // 2. ask the server for the screen key — it never travels in a URL
+        const r2 = await fetch(API_BASE + "/api/screen-token", {
+          headers: {"Authorization": "Bearer " + bearer}
+        });
+        if (r2.status === 503) throw new Error("Screen access is not configured on the server.");
+        if (!r2.ok) throw new Error("Server refused to release the screen key.");
+        const key = (await r2.json()).token;
+        if (!key) throw new Error("Server returned an empty key.");
+        try { localStorage.setItem("jarvis_screen_token", key); } catch (e) {}
+        location.replace(location.pathname);
+      } catch (e) {
+        document.getElementById("tok-go").textContent = "Unlock";
+        err(e.message || "Could not unlock.");
+      }
     };
     document.getElementById("tok-go").onclick = go;
     document.getElementById("tok-in").addEventListener("keydown",
       e => { if (e.key === "Enter") go(); });
+    document.getElementById("tok-in").focus();
   }
 
   window.addEventListener("resize", fit);
