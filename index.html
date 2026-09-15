@@ -770,22 +770,6 @@ body{
     </div>
     <div class="sidebar-body">
       <div id="connectorStatusList"><p class="tools-empty">Loading…</p></div>
-      <div class="connector-guide">
-        <h3>Connect your laptop (or any other machine)</h3>
-        <p>No SSH, no exposed ports, no router changes — your laptop makes an <strong>outbound-only</strong> connection to Jarvis and stays connected. Jarvis can never dial in on its own.</p>
-        <ol>
-          <li>Download <code>agent_client.py</code> from the <a href="https://github.com/jasmeet15069/kiraaivn_backend/blob/main/agent_client.py" target="_blank" rel="noopener">backend repo</a> onto the laptop.</li>
-          <li>Install its one dependency: <pre>pip install aiohttp</pre></li>
-          <li>Get a connection token from whoever runs the backend (it lives in the server's <code>.env</code>, never in this page or any repo).</li>
-          <li>Run it, and leave the window open — closing it instantly cuts Jarvis's access:
-            <pre>python agent_client.py \
-  --url wss://kira-chat.167-233-158-179.sslip.io/agent-ws \
-  --name my-laptop --token YOUR_TOKEN</pre>
-          </li>
-          <li>Tell Jarvis (or whoever manages the backend) the name you chose, e.g. <code>my-laptop</code> — it gets added to <code>connectors.json</code> so it shows up here once connected.</li>
-        </ol>
-        <p>Every command it's asked to run prints in that terminal window as it happens — that's your live audit log.</p>
-      </div>
     </div>
   </div>
 
