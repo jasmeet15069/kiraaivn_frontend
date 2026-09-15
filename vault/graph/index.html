@@ -47,6 +47,9 @@
   #side .linked div{padding:5px 0;font-size:12.5px;color:#9fb0c8;cursor:pointer;
     border-bottom:1px solid #1c212c}
   #side .linked div:hover{color:var(--txt)}
+  #side .s-sec{color:#63708a;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.09em;padding:12px 0 4px;border:0;cursor:default}
+  #side .s-sec:hover{color:#63708a}
 
   #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     text-align:center;padding:24px;color:var(--dim);z-index:10}
@@ -245,7 +248,7 @@ function fire(node, depth, power){
     if(signals.length >= MAX_SIGNALS) break;
     const other = e.source===node ? e.target : e.source;
     // A resting blip travels one or two synapses; real work lights the street.
-    if(Math.random() < (power < 0.5 ? 0.82 : 0.45)) continue;
+    if(Math.random() < (power < 0.5 ? 0.7 : 0.45)) continue;
     signals.push({e, from:node, to:other, t:0,
                   speed: 0.5 + Math.random()*0.5, depth, power});
   }
@@ -258,7 +261,7 @@ function stepSignals(dt){
     if(s.t >= 1){
       signals.splice(i,1);
       // resting blips rarely cascade; real activity does
-      if(Math.random() < (s.power < 0.5 ? 0.07 : 0.3)) fire(s.to, s.depth+1, s.power);
+      if(Math.random() < (s.power < 0.5 ? 0.12 : 0.34)) fire(s.to, s.depth+1, s.power);
     }
   }
 }
@@ -405,7 +408,7 @@ function draw(){
     const x=ax+(bx-ax)*s.t, y=ay+(by-ay)*s.t;
     const col = colorOf(s.from);
     const [r,g,b] = hex2rgb(col);
-    const fade = Math.sin(Math.PI*s.t) * (s.power === undefined ? 1 : (0.35 + s.power*0.65));
+    const fade = Math.sin(Math.PI*s.t) * (s.power === undefined ? 1 : (0.6 + s.power*0.4));
     const tail = 0.13;
     const tx = ax+(bx-ax)*Math.max(0,s.t-tail), ty = ay+(by-ay)*Math.max(0,s.t-tail);
     const grad = ctx.createLinearGradient(tx,ty,x,y);
@@ -422,9 +425,9 @@ function draw(){
     if(dim) continue;
     const since = (now - n.fired)/700;
     const active = (since >= 0 && since < 1 ? 1-since : 0)
-                 * (n.power === undefined ? 1 : (0.3 + n.power*0.7));
+                 * (n.power === undefined ? 1 : (0.6 + n.power*0.4));
     const breathe = 0.5 + 0.5*Math.sin(now/1000*n.rate + n.seed);
-    const glow = (n.type==='hub' ? 0.10 : 0.05) + active*0.45 + breathe*0.015;
+    const glow = (n.type==='hub' ? 0.16 : 0.09) + active*0.7 + breathe*0.03;
     if(glow <= 0.02) continue;
     const col = colorOf(n);
     const [r,g,b] = hex2rgb(col);
@@ -465,6 +468,15 @@ function draw(){
     if(inPath || focus===n){
       ctx.lineWidth=2.5; ctx.strokeStyle = focus===n ? '#fff' : '#fbbf24'; ctx.stroke();
     }
+    if(focus===n){
+      // a slow pulsing halo ring — at a glance you can see WHICH cell you
+      // drilled into, even after dragging the view around
+      const pulse = 1 + 0.18*Math.sin(now/260);
+      ctx.beginPath(); ctx.arc(x, y, r*2.3*pulse, 0, 7);
+      ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, r*3.4*pulse, 0, 7);
+      ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1; ctx.stroke();
+    }
     ctx.globalAlpha=1;
 
     // Label only what earns it. Labelling all 128 is what made this a mess.
@@ -504,11 +516,15 @@ function loop(){
   // tell at a glance whether it is ticking over or genuinely working.
   sinceFire += dt;
   const busy = now < thinkingUntil;
-  const restInterval = busy ? 0.25 : 2.4;
+  // Baseline is LIVELY on purpose — a constantly firing network is what makes
+  // this read as a brain rather than a chart, and it is the version that
+  // looked right. Real vault writes then fire ~3x faster on top of it, so
+  // "thinking" is still visibly different without the resting state being dead.
+  const restInterval = busy ? 0.18 : 0.5;
   if(sinceFire > restInterval && nodes.length){
     sinceFire = 0;
     const pool = nodes.filter(n=>n.type!=='hub');
-    if(pool.length) fire(pool[Math.random()*pool.length|0], 0, busy ? 1 : 0.28);
+    if(pool.length) fire(pool[Math.random()*pool.length|0], 0, busy ? 1 : 0.85);
   }
 
   const thinking = now < thinkingUntil || signals.length > 0;
@@ -535,26 +551,89 @@ function at(mx,my){
   return best;
 }
 function openSide(n){
-  focus=n; fire(n,0);
+  focus=n; fire(n,0,1);   // a click IS activity: light it up
   settle = Math.max(settle, 0.3);      // let the neighbourhood breathe open
-  document.getElementById('s-kind').textContent=n.type;
-  document.getElementById('s-kind').style.color=colorOf(n);
-  document.getElementById('s-label').textContent=n.label;
-  document.getElementById('s-body').textContent=n.detail||'—';
-  const links=[...(adj[n.id]||[])].map(i=>byId[i]).filter(Boolean)
-    .filter(m=>m.type!=='hub').slice(0,12);
-  document.getElementById('s-linked').innerHTML = links.length
-    ? '<div style="color:#6b7688;font-size:11px;text-transform:uppercase;letter-spacing:.08em;padding-bottom:4px">Connected</div>'
-      + links.map(m=>`<div data-id="${m.id.replace(/"/g,'&quot;')}">${trunc(m.label,42).replace(/</g,'&lt;')}</div>`).join('')
-    : '';
-  document.getElementById('s-linked').querySelectorAll('[data-id]').forEach(el=>{
-    el.onclick=()=>{ const t=byId[el.dataset.id]; if(t) openSide(t); };
+
+  const color = colorOf(n);
+  document.getElementById('s-kind').textContent =
+    n.type === 'hub' ? `cluster · ${n.count} item${n.count===1?'':'s'}` : n.type;
+  document.getElementById('s-kind').style.color = color;
+  document.getElementById('s-label').textContent = n.label;
+
+  // The full text, not the truncated label the canvas shows. This is the
+  // whole point of clicking: the graph gives you shape, the panel gives you
+  // the actual memory.
+  const body = document.getElementById('s-body');
+  if(n.type === 'hub'){
+    const members = nodes.filter(m => m.type !== 'hub' && m.group === n.label);
+    body.textContent = `${members.length} memories in this cluster.`;
+  } else {
+    body.textContent = n.detail || '(no further detail recorded)';
+  }
+
+  // Everything it is wired to, grouped so the relationships are legible
+  // rather than one flat list.
+  const links = [...(adj[n.id]||[])].map(i=>byId[i]).filter(Boolean);
+  const hub   = links.filter(m => m.type === 'hub');
+  const peers = links.filter(m => m.type !== 'hub');
+  let html = '';
+  if(hub.length){
+    html += '<div class="s-sec">Cluster</div>'
+         +  hub.map(m=>`<div data-id="${esc(m.id)}" style="color:${colorOf(m)}">${esc(m.label)}</div>`).join('');
+  }
+  if(peers.length){
+    html += `<div class="s-sec">Connected · ${peers.length}</div>`
+         +  peers.slice(0,25).map(m=>
+              `<div data-id="${esc(m.id)}"><span style="color:${colorOf(m)}">&#9679;</span> ${esc(trunc(m.label,44))}</div>`
+            ).join('')
+         +  (peers.length>25 ? `<div style="color:#5b6577;border:0">+${peers.length-25} more</div>` : '');
+  }
+  if(!links.length) html = '<div class="s-sec">No connections yet</div>';
+  const linked = document.getElementById('s-linked');
+  linked.innerHTML = html;
+  // click through to drill into a neighbour — the graph keeps up
+  linked.querySelectorAll('[data-id]').forEach(el=>{
+    el.onclick = ()=>{ const t = byId[el.dataset.id]; if(t){ pathFrom=t; openSide(t); } };
   });
-  document.getElementById('s-meta').textContent =
-    (n.source ? `from ${n.source==='jarvis-computer'?'the MacBook':'the chat'} · ` : '')
-    + `${(adj[n.id]||new Set()).size} connection(s)`;
+
+  const when = n.updated ? fmtWhen(n.updated) : '';
+  document.getElementById('s-meta').innerHTML =
+    [ n.source ? `from ${n.source==='jarvis-computer'?'the MacBook':'the chat'}` : '',
+      n.group && n.type!=='hub' ? `cluster: ${esc(n.group)}` : '',
+      when ? `updated ${when}` : '',
+      `${links.length} connection${links.length===1?'':'s'}`,
+    ].filter(Boolean).join('<br>');
+
   document.getElementById('side').classList.add('open');
 }
+
+function esc(t){ return String(t).replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function fmtWhen(v){
+  // Order matters. long_term.json stores "2026-09-06" while todo/notes store
+  // float epochs — and parseFloat("2026-09-06") happily returns 2026, which
+  // as an epoch is January 1970. Try the date form FIRST.
+  const str = String(v).trim();
+  let t;
+  if(/^\d{4}-\d{2}-\d{2}/.test(str)){
+    const d = Date.parse(str);
+    if(isNaN(d)) return '';
+    t = d/1000;
+  } else {
+    t = parseFloat(str);
+    if(!isFinite(t)) return '';
+  }
+  if(t > 1e11) t /= 1000;
+  if(t < 86400) return '';           // not a real timestamp
+  const days = (Date.now()/1000 - t)/86400;
+  if(days < 0.04) return 'just now';
+  if(days < 1)  return 'today';
+  if(days < 2)  return 'yesterday';
+  if(days < 30) return `${Math.round(days)} days ago`;
+  return new Date(t*1000).toISOString().slice(0,10);
+}
+
 function closeSide(){ document.getElementById('side').classList.remove('open'); focus=null; }
 
 cv.addEventListener('mousemove', e=>{
