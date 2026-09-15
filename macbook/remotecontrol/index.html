@@ -33,13 +33,18 @@
   #keys{display:flex;gap:6px;padding:6px 8px;background:var(--panel);
     border-top:1px solid var(--line);overflow-x:auto}
   #keys button{white-space:nowrap;font-size:11px;padding:6px 9px}
-  #hidden{position:absolute;left:-9999px;opacity:0;height:1px;width:1px}
+  /* iOS will not open the keyboard for an element at left:-9999px — it must
+     be within the viewport. Keep it on-screen but invisible. */
+  #hidden{position:fixed;bottom:0;left:0;width:1px;height:1px;opacity:0;
+    border:0;padding:0;font-size:16px;z-index:-1}
   #toast{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);
     background:rgba(0,0,0,.85);border:1px solid var(--line);padding:8px 14px;
     border-radius:20px;font-size:12px;opacity:0;transition:.25s;pointer-events:none;z-index:20}
   #toast.show{opacity:1}
   #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    text-align:center;padding:24px;font-size:14px;color:var(--dim);z-index:10}
+    text-align:center;padding:24px;font-size:14px;color:var(--dim);z-index:10;
+    touch-action:auto}
+  #msg input,#msg button{touch-action:manipulation;font-size:16px}
 </style>
 </head>
 <body>
@@ -228,7 +233,13 @@
   let t0 = 0, moved = false, last = null, startN = null, twoFinger = false;
   const TAP_MS = 250, TAP_SLOP = 12;
 
+  // The password/keys overlay lives INSIDE #stage, so a blanket
+  // preventDefault() here eats taps meant for its input and button. On a mouse
+  // this never showed up: the mouse handlers do not preventDefault.
+  const inOverlay = e => e.target && e.target.closest && e.target.closest("#msg");
+
   stage.addEventListener("touchstart", e => {
+    if (inOverlay(e)) return;
     e.preventDefault();
     t0 = Date.now(); moved = false;
     twoFinger = e.touches.length >= 2;
@@ -237,6 +248,7 @@
   }, {passive:false});
 
   stage.addEventListener("touchmove", e => {
+    if (inOverlay(e)) return;
     e.preventDefault();
     const t = e.touches[0];
     const dx = t.clientX - last.x, dy = t.clientY - last.y;
@@ -254,6 +266,7 @@
   }, {passive:false});
 
   stage.addEventListener("touchend", e => {
+    if (inOverlay(e)) return;
     e.preventDefault();
     const quick = (Date.now() - t0) < TAP_MS && !moved;
     if(quick){
