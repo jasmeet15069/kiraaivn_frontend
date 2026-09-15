@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>JARVIS — Vault</title>
+<style>
+  :root{
+    --bg:#07090f; --panel:#12151d; --line:#232936; --txt:#dde3ed;
+    --dim:#7c879b; --accent:#6366f1; --ok:#22c55e; --warn:#f59e0b; --bad:#f87171;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+  #bar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);
+    border-bottom:1px solid var(--line);flex-wrap:wrap;position:relative;z-index:2}
+  .pill{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+  .spacer{flex:1}
+  canvas{display:block;touch-action:none}
+  #legend{position:fixed;bottom:10px;right:10px;font-size:11px;color:var(--dim);
+    display:flex;gap:12px;z-index:2}
+  #legend span{display:inline-flex;align-items:center;gap:4px}
+  .lg-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  #inspector{position:fixed;top:0;right:0;width:280px;max-width:80vw;height:100%;
+    background:rgba(10,13,20,0.94);border-left:1px solid var(--line);padding:16px;
+    box-sizing:border-box;transform:translateX(100%);transition:transform .2s;
+    overflow-y:auto;font-size:13px;z-index:3}
+  #inspector.open{transform:translateX(0)}
+  #inspector h3{margin:0 0 4px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+  #inspector p{color:var(--dim);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+  #inspector .close{position:absolute;top:10px;right:12px;cursor:pointer;color:var(--dim);font-size:18px}
+  #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:24px;font-size:14px;color:var(--dim);z-index:10}
+  #msg input{width:220px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
+    background:#1b2030;color:var(--txt);font-size:16px;margin-top:10px}
+  #msg button{background:#1b2030;color:var(--txt);border:1px solid var(--line);
+    border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;margin-top:10px;
+    cursor:pointer}
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <span class="pill"><span class="dot" id="dot"></span><span id="state">connecting…</span></span>
+  <span class="pill" id="count-label">0 nodes</span>
+  <div class="spacer"></div>
+  <span class="pill" style="color:var(--dim)">hover to focus · click to inspect · shift-click a second node for shortest path</span>
+</div>
+<canvas id="c"></canvas>
+<div id="legend">
+  <span><i class="lg-dot" style="background:#7dd3fc"></i>fact</span>
+  <span><i class="lg-dot" style="background:#a78bfa"></i>task</span>
+  <span><i class="lg-dot" style="background:#34d399"></i>note</span>
+  <span><i class="lg-dot" style="background:#f59e0b"></i>session</span>
+  <span><i class="lg-dot" style="background:#374151"></i>hub</span>
+</div>
+<div id="inspector"><span class="close" onclick="closeInspector()">&times;</span>
+  <h3 id="i-type"></h3>
+  <h3 id="i-label" style="color:var(--txt);font-size:15px;text-transform:none;letter-spacing:0"></h3>
+  <p id="i-detail"></p>
+</div>
+<div id="msg"></div>
+
+<script>
+// Same-origin split as macbook/remotecontrol: on kiraaivn-frontend.vercel.app
+// the existing /api/:path* rewrite in vercel.json already covers this page's
+// calls, so API_BASE stays empty there too. This is a plain GET behind that
+// rewrite (unlike the screen socket), so no direct-to-VPS split is needed.
+const Q = new URLSearchParams(location.search);
+const LOCAL = location.hostname === "127.0.0.1" || location.hostname === "localhost"
+             || location.hostname === "192.168.1.8";
+const API_BASE = LOCAL ? "https://kira-chat.167-233-158-179.sslip.io" : "";
+
+const COLORS = {fact:'#7dd3fc', task:'#a78bfa', note:'#34d399', session:'#f59e0b', hub:'#374151'};
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let W, H;
+function resize(){ W = cv.width = innerWidth; H = cv.height = innerHeight - 40; cv.style.marginTop='40px'; }
+resize(); addEventListener('resize', resize);
+
+let nodes = [], edges = [], adjacency = {};
+let hoverNode = null, focusNode = null, pathFrom = null, pathNodes = new Set();
+let dragging = null, panX = 0, panY = 0, zoom = 1, dragStart = null;
+let TOKEN = localStorage.getItem("jarvis_dashboard_token") || "";
+
+function setState(text, cls) {
+  document.getElementById("state").textContent = text;
+  const dot = document.getElementById("dot");
+  dot.className = "dot" + (cls ? " " + cls : "");
+}
+
+function showUnlock() {
+  const msg = document.getElementById("msg");
+  msg.innerHTML =
+    '<div><div style="font-size:15px;color:var(--txt);margin-bottom:4px">Unlock the vault</div>' +
+    '<div style="font-size:12px">Same password as the JARVIS dashboard.</div>' +
+    '<input id="pw" type="password" placeholder="Dashboard password" autocomplete="current-password"><br>' +
+    '<button id="go">Unlock</button>' +
+    '<div id="err" style="color:var(--bad);margin-top:8px;min-height:16px;font-size:12px"></div></div>';
+  const err = t => { document.getElementById("err").textContent = t || ""; };
+  const go = async () => {
+    const pw = document.getElementById("pw").value;
+    if (!pw) return;
+    err(""); document.getElementById("go").textContent = "Unlocking…";
+    try {
+      const r = await fetch(API_BASE + "/api/login", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({password: pw}),
+      });
+      if (!r.ok) throw new Error("Incorrect password.");
+      TOKEN = (await r.json()).token;
+      localStorage.setItem("jarvis_dashboard_token", TOKEN);
+      msg.innerHTML = "";
+      await load();
+    } catch (e) {
+      document.getElementById("go").textContent = "Unlock";
+      err(e.message || "Could not unlock.");
+    }
+  };
+  document.getElementById("go").onclick = go;
+  document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+}
+
+async function load() {
+  if (!TOKEN) { showUnlock(); return; }
+  setState("loading…");
+  let res;
+  try {
+    res = await fetch(API_BASE + "/api/vault/graph", {headers: {Authorization: "Bearer " + TOKEN}});
+  } catch (e) {
+    setState("unreachable", "off"); return;
+  }
+  if (res.status === 401) {
+    localStorage.removeItem("jarvis_dashboard_token"); TOKEN = "";
+    setState("session expired", "off"); showUnlock(); return;
+  }
+  if (!res.ok) { setState("error " + res.status, "off"); return; }
+  const g = await res.json();
+
+  if (g.error && !g.nodes.length) {
+    setState("no vault yet", "off");
+    document.getElementById("msg").innerHTML =
+      '<div>' + g.error + '<br><span style="font-size:12px">Make sure Mark LIII is running on the MacBook.</span></div>';
+    return;
+  }
+  document.getElementById("msg").innerHTML = "";
+  setState(g.stale ? "MacBook offline — showing last known state" : "live", g.stale ? "warn" : "on");
+  document.getElementById("count-label").textContent = g.nodes.length + " nodes";
+
+  const degree = {};
+  g.edges.forEach(e => { degree[e.source] = (degree[e.source]||0)+1; degree[e.target] = (degree[e.target]||0)+1; });
+  nodes = g.nodes.map(n => ({...n, x: W/2+(Math.random()-0.5)*400, y: H/2+(Math.random()-0.5)*400,
+    vx:0, vy:0, r: 4+Math.min(16, Math.sqrt(degree[n.id]||1)*3)}));
+  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+  edges = g.edges.map(e => ({source: byId[e.source], target: byId[e.target]})).filter(e => e.source && e.target);
+  adjacency = {}; nodes.forEach(n => adjacency[n.id] = new Set());
+  edges.forEach(e => { adjacency[e.source.id].add(e.target.id); adjacency[e.target.id].add(e.source.id); });
+}
+
+const CELL = 80;
+function grid() {
+  const g = new Map();
+  for (const n of nodes) {
+    const k = Math.floor(n.x/CELL) + ',' + Math.floor(n.y/CELL);
+    if (!g.has(k)) g.set(k, []);
+    g.get(k).push(n);
+  }
+  return g;
+}
+function tick() {
+  const g = grid();
+  for (const n of nodes) {
+    if (n === dragging) continue;
+    n.vx *= 0.85; n.vy *= 0.85;
+    const cx = Math.floor(n.x/CELL), cy = Math.floor(n.y/CELL);
+    for (let dx=-1; dx<=1; dx++) for (let dy=-1; dy<=1; dy++) {
+      const cell = g.get((cx+dx)+','+(cy+dy)); if (!cell) continue;
+      for (const o of cell) {
+        if (o === n) continue;
+        const ddx=n.x-o.x, ddy=n.y-o.y, d2=ddx*ddx+ddy*ddy||1, d=Math.sqrt(d2);
+        if (d < 90) { const f=120/d2; n.vx+=ddx/d*f; n.vy+=ddy/d*f; }
+      }
+    }
+  }
+  for (const e of edges) {
+    const dx=e.target.x-e.source.x, dy=e.target.y-e.source.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+    const f=(d-70)*0.006;
+    e.source.vx+=dx/d*f; e.source.vy+=dy/d*f; e.target.vx-=dx/d*f; e.target.vy-=dy/d*f;
+  }
+  for (const n of nodes) {
+    if (n === dragging) continue;
+    n.vx += (W/2-n.x)*0.0004; n.vy += (H/2-n.y)*0.0004;
+    n.x += n.vx; n.y += n.vy;
+  }
+}
+
+function shortestPath(a, b) {
+  if (!a || !b || a === b) return new Set();
+  const prev = {}, seen = new Set([a]); let queue = [a];
+  while (queue.length) {
+    const next = [];
+    for (const u of queue) {
+      if (u === b) break;
+      for (const v of adjacency[u] || []) if (!seen.has(v)) { seen.add(v); prev[v]=u; next.push(v); }
+    }
+    if (seen.has(b)) break;
+    queue = next;
+    if (!queue.length) return new Set();
+  }
+  if (!seen.has(b)) return new Set();
+  const path = new Set([b]); let cur = b;
+  while (cur !== a && prev[cur]) { cur = prev[cur]; path.add(cur); }
+  return path;
+}
+
+let pulse = null;
+setInterval(() => {
+  if (!edges.length) return;
+  pulse = {e: edges[Math.floor(Math.random()*edges.length)], t: 0};
+}, 3500);
+
+function toScreen(n) { return [n.x*zoom+panX, n.y*zoom+panY]; }
+function draw() {
+  ctx.fillStyle = '#07090f'; ctx.fillRect(0,0,W,H);
+  const activePath = pathNodes.size ? pathNodes : null;
+  ctx.lineWidth = 1;
+  for (const e of edges) {
+    const [sx,sy]=toScreen(e.source), [tx,ty]=toScreen(e.target);
+    const inPath = activePath && activePath.has(e.source.id) && activePath.has(e.target.id);
+    const lit = hoverNode && (e.source===hoverNode || e.target===hoverNode);
+    ctx.strokeStyle = inPath ? '#f59e0b' : lit ? 'rgba(125,211,252,0.6)' : 'rgba(255,255,255,0.06)';
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(tx,ty); ctx.stroke();
+  }
+  if (pulse) {
+    pulse.t += 0.02;
+    if (pulse.t >= 1) pulse = null;
+    else {
+      const [sx,sy]=toScreen(pulse.e.source), [tx,ty]=toScreen(pulse.e.target);
+      const x=sx+(tx-sx)*pulse.t, y=sy+(ty-sy)*pulse.t;
+      ctx.fillStyle='rgba(125,211,252,0.9)'; ctx.beginPath(); ctx.arc(x,y,2.5,0,7); ctx.fill();
+    }
+  }
+  const labels = [];
+  for (const n of [...nodes].sort((a,b)=>b.r-a.r)) {
+    const [x,y]=toScreen(n);
+    const dim = hoverNode && n!==hoverNode && !adjacency[hoverNode.id]?.has(n.id);
+    const inPath = activePath && activePath.has(n.id);
+    ctx.globalAlpha = dim ? 0.1 : 1;
+    ctx.fillStyle = COLORS[n.type] || '#666';
+    ctx.beginPath(); ctx.arc(x,y,n.r*zoom,0,7); ctx.fill();
+    if (inPath) { ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2; ctx.stroke(); }
+    if (focusNode === n) { ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    if (!dim && n.r > 6) {
+      const w = ctx.measureText(n.label).width + 8;
+      const box = {x:x+n.r*zoom+3, y:y-6, w, h:12};
+      if (!labels.some(b=>box.x<b.x+b.w&&box.x+box.w>b.x&&box.y<b.y+b.h&&box.y+box.h>b.y)) {
+        labels.push(box);
+        ctx.fillStyle='var(--dim)'; ctx.font='10px -apple-system,sans-serif';
+        ctx.fillStyle = '#aab4c4';
+        ctx.fillText(n.label, box.x, y+3);
+      }
+    }
+  }
+}
+function loop() { tick(); draw(); requestAnimationFrame(loop); }
+
+function nodeAt(mx, my) {
+  const my2 = my - 40;
+  for (const n of nodes) {
+    const [x,y]=toScreen(n);
+    if ((x-mx)**2 + (y-my2)**2 < (n.r*zoom+4)**2) return n;
+  }
+  return null;
+}
+function openInspector(n) {
+  document.getElementById('i-type').textContent = n.type;
+  document.getElementById('i-label').textContent = n.label;
+  document.getElementById('i-detail').textContent = n.detail || '(no detail)';
+  document.getElementById('inspector').classList.add('open');
+}
+function closeInspector() { document.getElementById('inspector').classList.remove('open'); focusNode = null; }
+
+cv.addEventListener('mousemove', e => {
+  hoverNode = nodeAt(e.clientX, e.clientY);
+  if (dragging) { dragging.x = (e.clientX-panX)/zoom; dragging.y = (e.clientY-40-panY)/zoom; }
+  else if (dragStart) { panX = dragStart.px+(e.clientX-dragStart.x); panY = dragStart.py+(e.clientY-dragStart.y); }
+});
+cv.addEventListener('mousedown', e => {
+  const n = nodeAt(e.clientX, e.clientY);
+  if (n) dragging = n; else dragStart = {x:e.clientX, y:e.clientY, px:panX, py:panY};
+});
+addEventListener('mouseup', () => { dragging = null; dragStart = null; });
+cv.addEventListener('click', e => {
+  const n = nodeAt(e.clientX, e.clientY);
+  if (!n) { closeInspector(); pathFrom=null; pathNodes=new Set(); return; }
+  if (e.shiftKey && pathFrom) {
+    pathNodes = shortestPath(pathFrom.id, n.id);
+  } else {
+    focusNode = n; pathFrom = n; pathNodes = new Set();
+    openInspector(n);
+  }
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.08 : 0.92;
+  panX = e.clientX - (e.clientX-panX)*factor; panY = e.clientY - (e.clientY-panY)*factor;
+  zoom = Math.max(0.2, Math.min(4, zoom*factor));
+}, {passive:false});
+
+// touch: one finger pans/drags a node, two fingers pinch-zoom
+let touchStart = null;
+cv.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    const t = e.touches[0], n = nodeAt(t.clientX, t.clientY);
+    if (n) dragging = n; else touchStart = {x:t.clientX, y:t.clientY, px:panX, py:panY};
+  }
+}, {passive:true});
+cv.addEventListener('touchmove', e => {
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    if (dragging) { dragging.x = (t.clientX-panX)/zoom; dragging.y = (t.clientY-40-panY)/zoom; }
+    else if (touchStart) { panX = touchStart.px+(t.clientX-touchStart.x); panY = touchStart.py+(t.clientY-touchStart.y); }
+  }
+}, {passive:true});
+cv.addEventListener('touchend', () => { dragging = null; touchStart = null; });
+
+resize();
+loop();
+load();
+</script>
+</body>
+</html>
