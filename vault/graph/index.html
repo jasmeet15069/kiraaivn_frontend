@@ -51,14 +51,20 @@
     letter-spacing:.09em;padding:12px 0 4px;border:0;cursor:default}
   #side .s-sec:hover{color:#63708a}
 
+  /* inset:0 means this sits over the WHOLE canvas. Empty, it is invisible but
+     still swallowed every click — nothing in the graph was selectable. It
+     must never take pointer events itself; only its actual content (the
+     unlock form, an error) may. */
   #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    text-align:center;padding:24px;color:var(--dim);z-index:10}
+    text-align:center;padding:24px;color:var(--dim);z-index:10;pointer-events:none}
+  #msg > *{pointer-events:auto}
   #msg input{width:230px;padding:10px 12px;border-radius:9px;border:1px solid var(--line);
     background:#1b2030;color:var(--txt);font-size:16px;margin-top:12px}
   #msg button{background:var(--accent);color:#fff;border:0;border-radius:9px;
     padding:10px 16px;font-size:13px;font-weight:600;margin-top:10px;cursor:pointer}
   #empty{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);
-    color:var(--dim);font-size:13px;text-align:center;display:none}
+    color:var(--dim);font-size:13px;text-align:center;display:none;
+    pointer-events:none}
 </style>
 </head>
 <body>
