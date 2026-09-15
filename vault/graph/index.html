@@ -2,333 +2,692 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>JARVIS — Vault</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JARVIS — Memory</title>
 <style>
   :root{
-    --bg:#07090f; --panel:#12151d; --line:#232936; --txt:#dde3ed;
-    --dim:#7c879b; --accent:#6366f1; --ok:#22c55e; --warn:#f59e0b; --bad:#f87171;
+    --bg:#0a0c12; --panel:#141821; --line:#252b38; --txt:#e6ebf4;
+    --dim:#8792a6; --accent:#6366f1;
+    --fact:#38bdf8; --task:#a78bfa; --note:#34d399; --session:#fbbf24;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
-  #bar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);
-    border-bottom:1px solid var(--line);flex-wrap:wrap;position:relative;z-index:2}
-  .pill{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
-  .dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+    font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+
+  #bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--panel);
+    border-bottom:1px solid var(--line);flex-wrap:wrap;position:relative;z-index:3}
+  #title{font-weight:600;font-size:13px;letter-spacing:.2px}
+  #state{font-size:12px;color:var(--dim)}
   .spacer{flex:1}
-  canvas{display:block;touch-action:none}
-  #legend{position:fixed;bottom:10px;right:10px;font-size:11px;color:var(--dim);
-    display:flex;gap:12px;z-index:2}
-  #legend span{display:inline-flex;align-items:center;gap:4px}
-  .lg-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-  #inspector{position:fixed;top:0;right:0;width:280px;max-width:80vw;height:100%;
-    background:rgba(10,13,20,0.94);border-left:1px solid var(--line);padding:16px;
-    box-sizing:border-box;transform:translateX(100%);transition:transform .2s;
-    overflow-y:auto;font-size:13px;z-index:3}
-  #inspector.open{transform:translateX(0)}
-  #inspector h3{margin:0 0 4px;color:#7dd3fc;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
-  #inspector p{color:var(--dim);line-height:1.5;white-space:pre-wrap;word-break:break-word}
-  #inspector .close{position:absolute;top:10px;right:12px;cursor:pointer;color:var(--dim);font-size:18px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
+    border:1px solid var(--line);background:#1a1f2b;color:var(--dim);font-size:12px;
+    cursor:pointer;user-select:none;transition:.15s}
+  .chip .sw{width:9px;height:9px;border-radius:50%}
+  .chip.on{color:var(--txt);background:#222839;border-color:#3a4256}
+  .chip:active{transform:translateY(1px)}
+  #hint{font-size:11.5px;color:var(--dim);padding:6px 14px;background:var(--panel);
+    border-bottom:1px solid var(--line);position:relative;z-index:3}
+
+  canvas{display:block;touch-action:none;cursor:grab}
+  canvas:active{cursor:grabbing}
+
+  #side{position:fixed;top:0;right:0;width:320px;max-width:86vw;height:100%;
+    background:rgba(16,19,27,.97);border-left:1px solid var(--line);
+    padding:18px;transform:translateX(100%);transition:transform .18s ease;
+    overflow-y:auto;z-index:5;backdrop-filter:blur(8px)}
+  #side.open{transform:none}
+  #side .kind{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:600}
+  #side h2{margin:6px 0 12px;font-size:17px;line-height:1.35;font-weight:600}
+  #side .body{color:#aeb9cc;line-height:1.6;white-space:pre-wrap;word-break:break-word;font-size:13px}
+  #side .meta{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--dim);line-height:1.7}
+  #side .x{position:absolute;top:12px;right:14px;cursor:pointer;color:var(--dim);
+    font-size:22px;line-height:1}
+  #side .linked{margin-top:14px}
+  #side .linked div{padding:5px 0;font-size:12.5px;color:#9fb0c8;cursor:pointer;
+    border-bottom:1px solid #1c212c}
+  #side .linked div:hover{color:var(--txt)}
+
   #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    text-align:center;padding:24px;font-size:14px;color:var(--dim);z-index:10}
-  #msg input{width:220px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
-    background:#1b2030;color:var(--txt);font-size:16px;margin-top:10px}
-  #msg button{background:#1b2030;color:var(--txt);border:1px solid var(--line);
-    border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;margin-top:10px;
-    cursor:pointer}
+    text-align:center;padding:24px;color:var(--dim);z-index:10}
+  #msg input{width:230px;padding:10px 12px;border-radius:9px;border:1px solid var(--line);
+    background:#1b2030;color:var(--txt);font-size:16px;margin-top:12px}
+  #msg button{background:var(--accent);color:#fff;border:0;border-radius:9px;
+    padding:10px 16px;font-size:13px;font-weight:600;margin-top:10px;cursor:pointer}
+  #empty{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);
+    color:var(--dim);font-size:13px;text-align:center;display:none}
 </style>
 </head>
 <body>
 
 <div id="bar">
-  <span class="pill"><span class="dot" id="dot"></span><span id="state">connecting…</span></span>
-  <span class="pill" id="count-label">0 nodes</span>
+  <span id="title">JARVIS — Memory</span>
+  <span id="state">loading…</span>
   <div class="spacer"></div>
-  <span class="pill" style="color:var(--dim)">hover to focus · click to inspect · shift-click a second node for shortest path</span>
+  <span class="chip" id="fitBtn" style="border-color:#3a4256">⤢ fit</span>
+  <span class="chip on" data-kind="fact"><i class="sw" style="background:var(--fact)"></i><span data-l>facts</span></span>
+  <span class="chip on" data-kind="session"><i class="sw" style="background:var(--session)"></i><span data-l>sessions</span></span>
+  <span class="chip on" data-kind="note"><i class="sw" style="background:var(--note)"></i><span data-l>notes</span></span>
+  <span class="chip" data-kind="task"><i class="sw" style="background:var(--task)"></i><span data-l>tasks</span></span>
 </div>
+<div id="hint">Click a node to read it · hover to isolate its links · shift-click two nodes for the path between them</div>
+
 <canvas id="c"></canvas>
-<div id="legend">
-  <span><i class="lg-dot" style="background:#7dd3fc"></i>fact</span>
-  <span><i class="lg-dot" style="background:#a78bfa"></i>task</span>
-  <span><i class="lg-dot" style="background:#34d399"></i>note</span>
-  <span><i class="lg-dot" style="background:#f59e0b"></i>session</span>
-  <span><i class="lg-dot" style="background:#374151"></i>hub</span>
-</div>
-<div id="inspector"><span class="close" onclick="closeInspector()">&times;</span>
-  <h3 id="i-type"></h3>
-  <h3 id="i-label" style="color:var(--txt);font-size:15px;text-transform:none;letter-spacing:0"></h3>
-  <p id="i-detail"></p>
+<div id="empty">Nothing selected.<br>Turn a category on above.</div>
+
+<div id="side">
+  <span class="x" onclick="closeSide()">&times;</span>
+  <div class="kind" id="s-kind"></div>
+  <h2 id="s-label"></h2>
+  <div class="body" id="s-body"></div>
+  <div class="linked" id="s-linked"></div>
+  <div class="meta" id="s-meta"></div>
 </div>
 <div id="msg"></div>
 
 <script>
-// Same-origin split as macbook/remotecontrol: on kiraaivn-frontend.vercel.app
-// the existing /api/:path* rewrite in vercel.json already covers this page's
-// calls, so API_BASE stays empty there too. This is a plain GET behind that
-// rewrite (unlike the screen socket), so no direct-to-VPS split is needed.
-const Q = new URLSearchParams(location.search);
-const LOCAL = location.hostname === "127.0.0.1" || location.hostname === "localhost"
-             || location.hostname === "192.168.1.8";
-const API_BASE = LOCAL ? "https://kira-chat.167-233-158-179.sslip.io" : "";
+/* ─────────────────────────────────────────────────────────────────────────
+   The memory, drawn as what it is: a network that fires.
 
-const COLORS = {fact:'#7dd3fc', task:'#a78bfa', note:'#34d399', session:'#f59e0b', hub:'#374151'};
+   Three things make this read as alive rather than as a diagram.
+
+   1. IT NEVER FULLY SETTLES. A force layout normally converges and freezes.
+      Here, once it has found its shape, every cell keeps drifting on its own
+      slow sine — small enough not to move the structure, large enough that
+      nothing is ever perfectly still.
+
+   2. IT FIRES. Every so often a cell activates, and a signal travels down each
+      of its connections to its neighbours. Arriving signals can trigger the
+      neighbour in turn, so activity spreads in cascades and dies out — the
+      thing a neuron actually does. Cascade depth is capped, or one click
+      would light the whole graph forever.
+
+   3. IT GLOWS ADDITIVELY. Halos and travelling signals composite with
+      'lighter', so overlapping activity brightens the way light does.
+
+   Interaction is unchanged: hover isolates, click reads, shift-click finds a
+   path, drag moves a cell, wheel zooms.
+   ───────────────────────────────────────────────────────────────────────── */
+
+// One hue per CLUSTER. The vault has ~18 real groups (the [Section] prefixes
+// the owner already writes on roadmap tasks, plus the fact categories), so the
+// colour carries information instead of just marking four coarse types.
+// Ordered so neighbouring clusters rarely land on neighbouring hues.
+const PALETTE = ['#38bdf8','#34d399','#fbbf24','#f472b6','#a78bfa','#22d3ee',
+                 '#fb923c','#4ade80','#60a5fa','#e879f9','#facc15','#2dd4bf',
+                 '#f87171','#818cf8','#a3e635','#fda4af','#93c5fd','#c084fc'];
+const KIND_FALLBACK = {fact:'#38bdf8', task:'#a78bfa', note:'#34d399',
+                       session:'#fbbf24', hub:'#64748b'};
+const PLURAL = {fact:'facts', task:'tasks', note:'notes', session:'sessions'};
+let GROUP_COLOR = {};            // cluster name -> hue, assigned once on load
+
+const colorOf = n => GROUP_COLOR[n.group] || KIND_FALLBACK[n.kind] || '#94a3b8';
+
+// Everything on by default now. Hiding the 100 tasks was the right call when
+// they were one undifferentiated blob; split across 13 labelled clusters they
+// are the texture that makes this read as a brain rather than a diagram.
+let visible = {fact:true, session:true, note:true, task:true};
+
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-let W, H;
-function resize(){ W = cv.width = innerWidth; H = cv.height = innerHeight - 40; cv.style.marginTop='40px'; }
-resize(); addEventListener('resize', resize);
-
-let nodes = [], edges = [], adjacency = {};
-let hoverNode = null, focusNode = null, pathFrom = null, pathNodes = new Set();
-let dragging = null, panX = 0, panY = 0, zoom = 1, dragStart = null;
-let TOKEN = localStorage.getItem("jarvis_dashboard_token") || "";
-
-function setState(text, cls) {
-  document.getElementById("state").textContent = text;
-  const dot = document.getElementById("dot");
-  dot.className = "dot" + (cls ? " " + cls : "");
+let W=0, H=0, DPR=1, TOP=0;
+function resize(){
+  TOP = document.getElementById('bar').offsetHeight + document.getElementById('hint').offsetHeight;
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight - TOP;
+  // NO marginTop. The canvas is a block element that already follows #bar and
+  // #hint in normal flow, so adding TOP again pushed it down twice and hung
+  // the bottom TOP pixels below the fold — which reads as "the graph sits low"
+  // even though it is perfectly centred inside its own canvas.
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+  cv.width = W*DPR; cv.height = H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
 }
 
-function showUnlock() {
-  const msg = document.getElementById("msg");
-  msg.innerHTML =
-    '<div><div style="font-size:15px;color:var(--txt);margin-bottom:4px">Unlock the vault</div>' +
-    '<div style="font-size:12px">Same password as the JARVIS dashboard.</div>' +
-    '<input id="pw" type="password" placeholder="Dashboard password" autocomplete="current-password"><br>' +
-    '<button id="go">Unlock</button>' +
-    '<div id="err" style="color:var(--bad);margin-top:8px;min-height:16px;font-size:12px"></div></div>';
-  const err = t => { document.getElementById("err").textContent = t || ""; };
-  const go = async () => {
-    const pw = document.getElementById("pw").value;
-    if (!pw) return;
-    err(""); document.getElementById("go").textContent = "Unlocking…";
-    try {
-      const r = await fetch(API_BASE + "/api/login", {
-        method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({password: pw}),
-      });
-      if (!r.ok) throw new Error("Incorrect password.");
-      TOKEN = (await r.json()).token;
-      localStorage.setItem("jarvis_dashboard_token", TOKEN);
-      msg.innerHTML = "";
-      await load();
-    } catch (e) {
-      document.getElementById("go").textContent = "Unlock";
-      err(e.message || "Could not unlock.");
+let ALL = {nodes:[], edges:[]};
+let nodes=[], edges=[], adj={}, byId={}, edgeOf={};
+let hover=null, focus=null, pathFrom=null, pathSet=new Set();
+let drag=null, panX=0, panY=0, zoom=1, panFrom=null, settle=0;
+let signals=[], t0=performance.now(), now=0;
+
+/* ---------- build the visible subgraph ---------- */
+function rebuild(){
+  const keep = n => n.type === 'hub' ? visible[n.kind || n.label] : visible[n.type];
+  const chosen = ALL.nodes.filter(keep);
+  const ids = new Set(chosen.map(n=>n.id));
+
+  const deg = {};
+  ALL.edges.forEach(e=>{
+    if(!ids.has(e.source)||!ids.has(e.target)) return;
+    deg[e.source]=(deg[e.source]||0)+1; deg[e.target]=(deg[e.target]||0)+1;
+  });
+
+  // Cluster seeding: each hub gets its own slice of the circle, its members a
+  // ring around it. Starting with structure beats asking the sim to find it.
+  const hubs = chosen.filter(n=>n.type==='hub');
+  const hubAngle = {};
+  // Golden-angle placement: consecutive clusters land far apart on the ring,
+  // so same-coloured neighbours and long bridge edges do not pile up.
+  hubs.forEach((h,i)=>{ hubAngle[h.label] = i * 2.39996; });
+  const R = Math.min(W,H)*0.42;
+
+  // Which cluster does each member belong to? Read off its hub edge.
+  const groupOf = {};
+  for(const e of ALL.edges){
+    if(String(e.target).startsWith('hub:')) groupOf[e.source] = String(e.target).slice(4);
+    else if(String(e.source).startsWith('hub:')) groupOf[e.target] = String(e.source).slice(4);
+  }
+
+  const prev = {}; nodes.forEach(n=>prev[n.id]=n);
+  nodes = chosen.map((n,i)=>{
+    const p = prev[n.id];
+    const kind = n.type==='hub' ? (n.kind || n.label) : n.type;
+    const group = n.type==='hub' ? n.label : (n.group || groupOf[n.id] || kind);
+    const a = (hubAngle[group] ?? 0);
+    const isHub = n.type==='hub';
+    const j = isHub ? 0 : (Math.random()-0.5);
+    return {
+      ...n, kind, group,
+      x: p ? p.x : W/2 + Math.cos(a)*R + j*R*0.8,
+      y: p ? p.y : H/2 + Math.sin(a)*R + j*R*0.8,
+      vx:0, vy:0,
+      r: isHub ? 14 : 4.5 + Math.min(8, Math.sqrt(deg[n.id]||1)*2),
+      count: 0,   // filled in below, once membership is known
+      // per-cell drift + pulse, offset so nothing moves in lockstep
+      seed: Math.random()*Math.PI*2,
+      rate: 0.35 + Math.random()*0.5,
+      fired: p ? p.fired : -1e9,
+    };
+  });
+
+  // cluster sizes, for the hub labels
+  const size = {};
+  nodes.forEach(n=>{ if(n.type!=='hub') size[n.group]=(size[n.group]||0)+1; });
+  nodes.forEach(n=>{ if(n.type==='hub') n.count = size[n.label]||0; });
+
+  byId = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  edges = ALL.edges.filter(e=>ids.has(e.source)&&ids.has(e.target))
+                   .map(e=>({source:byId[e.source], target:byId[e.target]}))
+                   .filter(e=>e.source&&e.target);
+  adj = {}; edgeOf = {};
+  nodes.forEach(n=>{ adj[n.id]=new Set(); edgeOf[n.id]=[]; });
+  edges.forEach(e=>{
+    adj[e.source.id].add(e.target.id); adj[e.target.id].add(e.source.id);
+    edgeOf[e.source.id].push(e); edgeOf[e.target.id].push(e);
+  });
+
+  signals = [];
+  settle = 1;
+  document.getElementById('empty').style.display = nodes.length ? 'none' : 'block';
+  updateChips();
+}
+
+function updateChips(){
+  const fitBtn = document.getElementById('fitBtn');
+if(fitBtn) fitBtn.onclick = ()=>{ settle=Math.max(settle,.25); fit(); };
+
+document.querySelectorAll('.chip').forEach(ch=>{
+    const k = ch.dataset.kind;
+    const n = ALL.nodes.filter(x=>x.type===k).length;
+    ch.classList.toggle('on', !!visible[k]);
+    ch.querySelector('[data-l]').textContent = `${PLURAL[k]} ${n}`;
+  });
+}
+
+/* ---------- firing ---------- */
+const MAX_SIGNALS = 90;
+
+function fire(node, depth){
+  if(!node || depth > 2) return;                 // cascades die out, as they must
+  node.fired = now;
+  for(const e of (edgeOf[node.id]||[])){
+    if(signals.length >= MAX_SIGNALS) break;
+    const other = e.source===node ? e.target : e.source;
+    if(Math.random() < 0.45) continue;           // not every synapse carries
+    signals.push({e, from:node, to:other, t:0,
+                  speed: 0.5 + Math.random()*0.5, depth});
+  }
+}
+
+function stepSignals(dt){
+  for(let i=signals.length-1;i>=0;i--){
+    const s = signals[i];
+    s.t += dt * s.speed * 1.5;
+    if(s.t >= 1){
+      signals.splice(i,1);
+      if(Math.random() < 0.3) fire(s.to, s.depth+1);   // sometimes it spreads
     }
-  };
-  document.getElementById("go").onclick = go;
-  document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+  }
 }
 
-async function load() {
-  if (!TOKEN) { showUnlock(); return; }
-  setState("loading…");
-  let res;
-  try {
-    res = await fetch(API_BASE + "/api/vault/graph", {headers: {Authorization: "Bearer " + TOKEN}});
-  } catch (e) {
-    setState("unreachable", "off"); return;
-  }
-  if (res.status === 401) {
-    localStorage.removeItem("jarvis_dashboard_token"); TOKEN = "";
-    setState("session expired", "off"); showUnlock(); return;
-  }
-  if (!res.ok) { setState("error " + res.status, "off"); return; }
-  const g = await res.json();
+/* ---------- forces ---------- */
+const CELL = 110;
+function tick(dt){
+  // Dragging keeps the simulation hot, so the cells wired to the one in your
+  // hand actually follow it instead of the graph behaving like a static image
+  // with one loose dot.
+  if(drag) settle = Math.max(settle, 0.55);
 
-  if (g.error && !g.nodes.length) {
-    setState("no vault yet", "off");
-    document.getElementById("msg").innerHTML =
-      '<div>' + g.error + '<br><span style="font-size:12px">Make sure Mark LIII is running on the MacBook.</span></div>';
+  // The layout converges, but the cells never stop breathing.
+  for(const n of nodes){
+    if(n===drag) continue;
+    const w = now/1000 * n.rate;
+    n.x += Math.cos(w + n.seed) * 0.22;
+    n.y += Math.sin(w*0.9 + n.seed*1.7) * 0.22;
+  }
+
+  if(settle < 0.02) return;
+  const grid = new Map();
+  for(const n of nodes){
+    const k = (n.x/CELL|0)+','+(n.y/CELL|0);
+    const cell = grid.get(k);
+    if(cell) cell.push(n); else grid.set(k,[n]);
+  }
+  for(const n of nodes){
+    if(n===drag) continue;
+    n.vx*=0.82; n.vy*=0.82;
+    const cx=n.x/CELL|0, cy=n.y/CELL|0;
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+      const cell=grid.get((cx+dx)+','+(cy+dy)); if(!cell) continue;
+      for(const o of cell){
+        if(o===n) continue;
+        let ddx=n.x-o.x, ddy=n.y-o.y, d2=ddx*ddx+ddy*ddy;
+        if(d2>34000) continue;
+        if(d2<1){ ddx=Math.random()-0.5; ddy=Math.random()-0.5; d2=1; }
+        const d=Math.sqrt(d2), want=(n.r+o.r)*2.8;
+        const f=(n.r+o.r)*34/d2 + (d<want ? (want-d)*0.05 : 0);
+        n.vx+=ddx/d*f; n.vy+=ddy/d*f;
+      }
+    }
+  }
+  for(const e of edges){
+    const isHub = e.source.type==='hub'||e.target.type==='hub';
+    const dx=e.target.x-e.source.x, dy=e.target.y-e.source.y;
+    const d=Math.hypot(dx,dy)||1;
+    const f=(d-(isHub?95:155))*(isHub?0.012:0.0015);
+    if(e.source!==drag){ e.source.vx+=dx/d*f; e.source.vy+=dy/d*f; }
+    if(e.target!==drag){ e.target.vx-=dx/d*f; e.target.vy-=dy/d*f; }
+  }
+  for(const n of nodes){
+    if(n===drag) continue;
+    n.vx += (W/2-n.x)*0.0016; n.vy += (H/2-n.y)*0.0016;
+    const sp=Math.hypot(n.vx,n.vy);
+    if(sp>9){ n.vx=n.vx/sp*9; n.vy=n.vy/sp*9; }
+    n.x+=n.vx; n.y+=n.vy;
+  }
+  settle *= 0.985;
+}
+
+function fit(){
+  if(!nodes.length) return;
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  for(const n of nodes){ a=Math.min(a,n.x-n.r); b=Math.min(b,n.y-n.r);
+                         c=Math.max(c,n.x+n.r); d=Math.max(d,n.y+n.r); }
+  const pad=90;
+  zoom = Math.max(.25, Math.min(1.6, Math.min((W-pad*2)/Math.max(1,c-a),
+                                              (H-pad*2)/Math.max(1,d-b))));
+  panX = W/2 - ((a+c)/2)*zoom;
+  panY = H/2 - ((b+d)/2)*zoom;
+}
+
+const SX = n => n.x*zoom+panX, SY = n => n.y*zoom+panY;
+
+function shortestPath(a,b){
+  if(!a||!b||a===b) return new Set();
+  const prev={}, seen=new Set([a]); let q=[a];
+  while(q.length){
+    const nx=[];
+    for(const u of q){
+      if(u===b) break;
+      for(const v of adj[u]||[]) if(!seen.has(v)){ seen.add(v); prev[v]=u; nx.push(v); }
+    }
+    if(seen.has(b)) break;
+    q=nx; if(!q.length) return new Set();
+  }
+  if(!seen.has(b)) return new Set();
+  const out=new Set([b]); let cur=b;
+  while(cur!==a && prev[cur]){ cur=prev[cur]; out.add(cur); }
+  return out;
+}
+
+const trunc = (s,n)=> s.length>n ? s.slice(0,n-1).trimEnd()+'…' : s;
+
+/* Clicking DRILLS DOWN: the clicked cell and everything wired to it stay lit,
+   the rest of the graph greys out and stays that way until you dismiss it.
+   Hovering does the same thing transiently. focus wins over hover, so a
+   drill-down does not flicker as the pointer moves across it. */
+function activeSet(){
+  const pick = focus || hover;
+  if(!pick) return null;
+  const s = new Set([pick.id]);
+  for(const id of (adj[pick.id]||[])) s.add(id);
+  return s;
+}
+const hex2rgb = h => [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+
+/* ---------- draw ---------- */
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const path = pathSet.size ? pathSet : null;
+  const live = activeSet();
+  const anchor = focus || hover;
+
+  // synapses
+  ctx.lineWidth = 1;
+  for(const e of edges){
+    const inPath = path && path.has(e.source.id) && path.has(e.target.id);
+    const lit = anchor && (e.source===anchor || e.target===anchor);
+    if(live && !lit && !inPath) continue;
+    ctx.strokeStyle = inPath ? 'rgba(251,191,36,.95)'
+                    : lit    ? 'rgba(129,140,248,.75)'
+                             : 'rgba(255,255,255,.05)';
+    ctx.beginPath(); ctx.moveTo(SX(e.source),SY(e.source));
+    ctx.lineTo(SX(e.target),SY(e.target)); ctx.stroke();
+  }
+  if(!live){
+    ctx.strokeStyle='rgba(255,255,255,.05)';
+    ctx.beginPath();
+    for(const e of edges){
+      if(path && path.has(e.source.id) && path.has(e.target.id)) continue;
+      ctx.moveTo(SX(e.source),SY(e.source)); ctx.lineTo(SX(e.target),SY(e.target));
+    }
+    ctx.stroke();
+  }
+
+  // travelling signals + halos, composited additively so overlaps brighten
+  ctx.globalCompositeOperation = 'lighter';
+
+  for(const s of signals){
+    const ax=SX(s.from), ay=SY(s.from), bx=SX(s.to), by=SY(s.to);
+    const x=ax+(bx-ax)*s.t, y=ay+(by-ay)*s.t;
+    const col = colorOf(s.from);
+    const [r,g,b] = hex2rgb(col);
+    const fade = Math.sin(Math.PI*s.t);              // brightest mid-flight
+    const tail = 0.13;
+    const tx = ax+(bx-ax)*Math.max(0,s.t-tail), ty = ay+(by-ay)*Math.max(0,s.t-tail);
+    const grad = ctx.createLinearGradient(tx,ty,x,y);
+    grad.addColorStop(0, `rgba(${r},${g},${b},0)`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},${0.85*fade})`);
+    ctx.strokeStyle = grad; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(x,y); ctx.stroke();
+    ctx.fillStyle = `rgba(${r},${g},${b},${0.95*fade})`;
+    ctx.beginPath(); ctx.arc(x,y,2.1,0,7); ctx.fill();
+  }
+
+  for(const n of nodes){
+    const dim = live && !live.has(n.id);
+    if(dim) continue;
+    const since = (now - n.fired)/700;
+    const active = since >= 0 && since < 1 ? 1-since : 0;
+    const breathe = 0.5 + 0.5*Math.sin(now/1000*n.rate + n.seed);
+    const glow = (n.type==='hub' ? 0.10 : 0.05) + active*0.45 + breathe*0.015;
+    if(glow <= 0.02) continue;
+    const col = colorOf(n);
+    const [r,g,b] = hex2rgb(col);
+    const x=SX(n), y=SY(n), rad=(n.r*zoom)*(2.4 + active*1.8);
+    const grad = ctx.createRadialGradient(x,y,0,x,y,rad);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${glow})`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(x,y,rad,0,7); ctx.fill();
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+
+  // cell bodies
+  const order=[...nodes].sort((p,q)=>(p.type==='hub')-(q.type==='hub'));
+  const labels=[];
+  for(const n of order){
+    const x=SX(n), y=SY(n);
+    const since=(now-n.fired)/700;
+    const active = since>=0 && since<1 ? 1-since : 0;
+    const r=(n.r*zoom)*(1 + active*0.35);
+    const dim = live && !live.has(n.id);
+    const inPath = path && path.has(n.id);
+    ctx.globalAlpha = dim ? 0.08 : 1;
+
+    if(n.type==='hub'){
+      ctx.beginPath(); ctx.arc(x,y,r,0,7);
+      ctx.fillStyle='#10141d'; ctx.fill();
+      ctx.lineWidth=2; ctx.strokeStyle=colorOf(n); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(x,y,r,0,7);
+      ctx.fillStyle=colorOf(n); ctx.fill();
+      if(active>0.05){
+        ctx.fillStyle=`rgba(255,255,255,${active*0.85})`;
+        ctx.beginPath(); ctx.arc(x,y,r*0.45,0,7); ctx.fill();
+      }
+    }
+    if(inPath || focus===n){
+      ctx.lineWidth=2.5; ctx.strokeStyle = focus===n ? '#fff' : '#fbbf24'; ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+
+    // Label only what earns it. Labelling all 128 is what made this a mess.
+    const show = n.type==='hub' || n===hover || n===focus || (live && live.has(n.id));
+    if(!show || dim) continue;
+    const text = n.type==='hub' ? `${n.label}  ${n.count}` : trunc(n.label, 30);
+    ctx.font = n.type==='hub' ? '600 12px -apple-system,sans-serif'
+                              : '11.5px -apple-system,sans-serif';
+    const w=ctx.measureText(text).width;
+    let lx=x+r+9, ly=y+4;
+    if(lx+w>W-8) lx = x-r-9-w;
+    lx=Math.max(6,lx);
+    const box={x:lx-5,y:ly-11,w:w+10,h:16};
+    if(labels.some(o=>box.x<o.x+o.w&&box.x+box.w>o.x&&box.y<o.y+o.h&&box.y+box.h>o.y)) continue;
+    labels.push(box);
+    ctx.fillStyle='rgba(10,12,18,.8)'; ctx.fillRect(box.x,box.y,box.w,box.h);
+    ctx.fillStyle = n.type==='hub' ? colorOf(n) : '#b6c2d4';
+    ctx.fillText(text, lx, ly);
+  }
+}
+
+let lastT = performance.now(), sinceFire = 0, wasThinking = null;
+function loop(){
+  const t = performance.now();
+  const dt = Math.min(0.05, (t-lastT)/1000);
+  lastT = t; now = t;
+
+  // NOTHING fires on its own any more. A sparkle means a real write landed in
+  // the shared vault — JARVIS or the chat actually thinking — so a quiet graph
+  // is the truth rather than a screensaver. See pollActivity().
+
+  const thinking = now < thinkingUntil || signals.length > 0;
+  const st = document.getElementById('state');
+  if(thinking !== wasThinking){
+    wasThinking = thinking;
+    st.textContent = thinking ? '● thinking…'
+                              : `${ALL.nodes.filter(x=>x.type!=='hub').length} memories`;
+    st.style.color = thinking ? '#38bdf8' : '';
+  }
+
+  tick(dt); stepSignals(dt); draw();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- interaction ---------- */
+function at(mx,my){
+  const y=my-TOP;
+  let best=null, bd=1e9;
+  for(const n of nodes){
+    const d=(SX(n)-mx)**2+(SY(n)-y)**2, rr=(n.r*zoom+8)**2;
+    if(d<rr && d<bd){ bd=d; best=n; }
+  }
+  return best;
+}
+function openSide(n){
+  focus=n; fire(n,0);
+  settle = Math.max(settle, 0.3);      // let the neighbourhood breathe open
+  document.getElementById('s-kind').textContent=n.type;
+  document.getElementById('s-kind').style.color=colorOf(n);
+  document.getElementById('s-label').textContent=n.label;
+  document.getElementById('s-body').textContent=n.detail||'—';
+  const links=[...(adj[n.id]||[])].map(i=>byId[i]).filter(Boolean)
+    .filter(m=>m.type!=='hub').slice(0,12);
+  document.getElementById('s-linked').innerHTML = links.length
+    ? '<div style="color:#6b7688;font-size:11px;text-transform:uppercase;letter-spacing:.08em;padding-bottom:4px">Connected</div>'
+      + links.map(m=>`<div data-id="${m.id.replace(/"/g,'&quot;')}">${trunc(m.label,42).replace(/</g,'&lt;')}</div>`).join('')
+    : '';
+  document.getElementById('s-linked').querySelectorAll('[data-id]').forEach(el=>{
+    el.onclick=()=>{ const t=byId[el.dataset.id]; if(t) openSide(t); };
+  });
+  document.getElementById('s-meta').textContent =
+    (n.source ? `from ${n.source==='jarvis-computer'?'the MacBook':'the chat'} · ` : '')
+    + `${(adj[n.id]||new Set()).size} connection(s)`;
+  document.getElementById('side').classList.add('open');
+}
+function closeSide(){ document.getElementById('side').classList.remove('open'); focus=null; }
+
+cv.addEventListener('mousemove', e=>{
+  hover = at(e.clientX, e.clientY);
+  cv.style.cursor = hover ? 'pointer' : 'grab';
+  if(drag){ drag.x=(e.clientX-panX)/zoom; drag.y=(e.clientY-TOP-panY)/zoom; settle=Math.max(settle,.35); }
+  else if(panFrom){ panX=panFrom.px+(e.clientX-panFrom.x); panY=panFrom.py+(e.clientY-panFrom.y); }
+});
+cv.addEventListener('mousedown', e=>{
+  const n=at(e.clientX,e.clientY);
+  if(n) drag=n; else panFrom={x:e.clientX,y:e.clientY,px:panX,py:panY};
+});
+addEventListener('mouseup', ()=>{ drag=null; panFrom=null; });
+cv.addEventListener('click', e=>{
+  const n=at(e.clientX,e.clientY);
+  if(!n){ closeSide(); pathFrom=null; pathSet=new Set(); return; }
+  if(e.shiftKey && pathFrom && pathFrom!==n){
+    pathSet=shortestPath(pathFrom.id,n.id);
+    document.getElementById('state').textContent =
+      pathSet.size ? `path: ${pathSet.size} steps` : 'no path between those two';
     return;
   }
-  document.getElementById("msg").innerHTML = "";
-  setState(g.stale ? "MacBook offline — showing last known state" : "live", g.stale ? "warn" : "on");
-  document.getElementById("count-label").textContent = g.nodes.length + " nodes";
-
-  const degree = {};
-  g.edges.forEach(e => { degree[e.source] = (degree[e.source]||0)+1; degree[e.target] = (degree[e.target]||0)+1; });
-  nodes = g.nodes.map(n => ({...n, x: W/2+(Math.random()-0.5)*400, y: H/2+(Math.random()-0.5)*400,
-    vx:0, vy:0, r: 4+Math.min(16, Math.sqrt(degree[n.id]||1)*3)}));
-  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
-  edges = g.edges.map(e => ({source: byId[e.source], target: byId[e.target]})).filter(e => e.source && e.target);
-  adjacency = {}; nodes.forEach(n => adjacency[n.id] = new Set());
-  edges.forEach(e => { adjacency[e.source.id].add(e.target.id); adjacency[e.target.id].add(e.source.id); });
-}
-
-const CELL = 80;
-function grid() {
-  const g = new Map();
-  for (const n of nodes) {
-    const k = Math.floor(n.x/CELL) + ',' + Math.floor(n.y/CELL);
-    if (!g.has(k)) g.set(k, []);
-    g.get(k).push(n);
-  }
-  return g;
-}
-function tick() {
-  const g = grid();
-  for (const n of nodes) {
-    if (n === dragging) continue;
-    n.vx *= 0.85; n.vy *= 0.85;
-    const cx = Math.floor(n.x/CELL), cy = Math.floor(n.y/CELL);
-    for (let dx=-1; dx<=1; dx++) for (let dy=-1; dy<=1; dy++) {
-      const cell = g.get((cx+dx)+','+(cy+dy)); if (!cell) continue;
-      for (const o of cell) {
-        if (o === n) continue;
-        const ddx=n.x-o.x, ddy=n.y-o.y, d2=ddx*ddx+ddy*ddy||1, d=Math.sqrt(d2);
-        if (d < 90) { const f=120/d2; n.vx+=ddx/d*f; n.vy+=ddy/d*f; }
-      }
-    }
-  }
-  for (const e of edges) {
-    const dx=e.target.x-e.source.x, dy=e.target.y-e.source.y, d=Math.sqrt(dx*dx+dy*dy)||1;
-    const f=(d-70)*0.006;
-    e.source.vx+=dx/d*f; e.source.vy+=dy/d*f; e.target.vx-=dx/d*f; e.target.vy-=dy/d*f;
-  }
-  for (const n of nodes) {
-    if (n === dragging) continue;
-    n.vx += (W/2-n.x)*0.0004; n.vy += (H/2-n.y)*0.0004;
-    n.x += n.vx; n.y += n.vy;
-  }
-}
-
-function shortestPath(a, b) {
-  if (!a || !b || a === b) return new Set();
-  const prev = {}, seen = new Set([a]); let queue = [a];
-  while (queue.length) {
-    const next = [];
-    for (const u of queue) {
-      if (u === b) break;
-      for (const v of adjacency[u] || []) if (!seen.has(v)) { seen.add(v); prev[v]=u; next.push(v); }
-    }
-    if (seen.has(b)) break;
-    queue = next;
-    if (!queue.length) return new Set();
-  }
-  if (!seen.has(b)) return new Set();
-  const path = new Set([b]); let cur = b;
-  while (cur !== a && prev[cur]) { cur = prev[cur]; path.add(cur); }
-  return path;
-}
-
-let pulse = null;
-setInterval(() => {
-  if (!edges.length) return;
-  pulse = {e: edges[Math.floor(Math.random()*edges.length)], t: 0};
-}, 3500);
-
-function toScreen(n) { return [n.x*zoom+panX, n.y*zoom+panY]; }
-function draw() {
-  ctx.fillStyle = '#07090f'; ctx.fillRect(0,0,W,H);
-  const activePath = pathNodes.size ? pathNodes : null;
-  ctx.lineWidth = 1;
-  for (const e of edges) {
-    const [sx,sy]=toScreen(e.source), [tx,ty]=toScreen(e.target);
-    const inPath = activePath && activePath.has(e.source.id) && activePath.has(e.target.id);
-    const lit = hoverNode && (e.source===hoverNode || e.target===hoverNode);
-    ctx.strokeStyle = inPath ? '#f59e0b' : lit ? 'rgba(125,211,252,0.6)' : 'rgba(255,255,255,0.06)';
-    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(tx,ty); ctx.stroke();
-  }
-  if (pulse) {
-    pulse.t += 0.02;
-    if (pulse.t >= 1) pulse = null;
-    else {
-      const [sx,sy]=toScreen(pulse.e.source), [tx,ty]=toScreen(pulse.e.target);
-      const x=sx+(tx-sx)*pulse.t, y=sy+(ty-sy)*pulse.t;
-      ctx.fillStyle='rgba(125,211,252,0.9)'; ctx.beginPath(); ctx.arc(x,y,2.5,0,7); ctx.fill();
-    }
-  }
-  const labels = [];
-  for (const n of [...nodes].sort((a,b)=>b.r-a.r)) {
-    const [x,y]=toScreen(n);
-    const dim = hoverNode && n!==hoverNode && !adjacency[hoverNode.id]?.has(n.id);
-    const inPath = activePath && activePath.has(n.id);
-    ctx.globalAlpha = dim ? 0.1 : 1;
-    ctx.fillStyle = COLORS[n.type] || '#666';
-    ctx.beginPath(); ctx.arc(x,y,n.r*zoom,0,7); ctx.fill();
-    if (inPath) { ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2; ctx.stroke(); }
-    if (focusNode === n) { ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); }
-    ctx.globalAlpha = 1;
-    if (!dim && n.r > 6) {
-      const w = ctx.measureText(n.label).width + 8;
-      const box = {x:x+n.r*zoom+3, y:y-6, w, h:12};
-      if (!labels.some(b=>box.x<b.x+b.w&&box.x+box.w>b.x&&box.y<b.y+b.h&&box.y+box.h>b.y)) {
-        labels.push(box);
-        ctx.fillStyle='var(--dim)'; ctx.font='10px -apple-system,sans-serif';
-        ctx.fillStyle = '#aab4c4';
-        ctx.fillText(n.label, box.x, y+3);
-      }
-    }
-  }
-}
-function loop() { tick(); draw(); requestAnimationFrame(loop); }
-
-function nodeAt(mx, my) {
-  const my2 = my - 40;
-  for (const n of nodes) {
-    const [x,y]=toScreen(n);
-    if ((x-mx)**2 + (y-my2)**2 < (n.r*zoom+4)**2) return n;
-  }
-  return null;
-}
-function openInspector(n) {
-  document.getElementById('i-type').textContent = n.type;
-  document.getElementById('i-label').textContent = n.label;
-  document.getElementById('i-detail').textContent = n.detail || '(no detail)';
-  document.getElementById('inspector').classList.add('open');
-}
-function closeInspector() { document.getElementById('inspector').classList.remove('open'); focusNode = null; }
-
-cv.addEventListener('mousemove', e => {
-  hoverNode = nodeAt(e.clientX, e.clientY);
-  if (dragging) { dragging.x = (e.clientX-panX)/zoom; dragging.y = (e.clientY-40-panY)/zoom; }
-  else if (dragStart) { panX = dragStart.px+(e.clientX-dragStart.x); panY = dragStart.py+(e.clientY-dragStart.y); }
+  pathFrom=n; pathSet=new Set();
+  focus = (focus===n) ? null : n;      // click the same cell again to zoom back out
+  if(focus) openSide(n); else closeSide();
+  document.getElementById('state').textContent = focus
+    ? `${(adj[n.id]||new Set()).size} connected — click it again to show everything`
+    : `${ALL.nodes.filter(x=>x.type!=='hub').length} memories`;
 });
-cv.addEventListener('mousedown', e => {
-  const n = nodeAt(e.clientX, e.clientY);
-  if (n) dragging = n; else dragStart = {x:e.clientX, y:e.clientY, px:panX, py:panY};
-});
-addEventListener('mouseup', () => { dragging = null; dragStart = null; });
-cv.addEventListener('click', e => {
-  const n = nodeAt(e.clientX, e.clientY);
-  if (!n) { closeInspector(); pathFrom=null; pathNodes=new Set(); return; }
-  if (e.shiftKey && pathFrom) {
-    pathNodes = shortestPath(pathFrom.id, n.id);
-  } else {
-    focusNode = n; pathFrom = n; pathNodes = new Set();
-    openInspector(n);
-  }
-});
-cv.addEventListener('wheel', e => {
+cv.addEventListener('wheel', e=>{
   e.preventDefault();
-  const factor = e.deltaY < 0 ? 1.08 : 0.92;
-  panX = e.clientX - (e.clientX-panX)*factor; panY = e.clientY - (e.clientY-panY)*factor;
-  zoom = Math.max(0.2, Math.min(4, zoom*factor));
-}, {passive:false});
+  const f=e.deltaY<0?1.1:0.9, my=e.clientY-TOP;
+  panX=e.clientX-(e.clientX-panX)*f; panY=my-(my-panY)*f;
+  zoom=Math.max(.2,Math.min(4,zoom*f));
+},{passive:false});
 
-// touch: one finger pans/drags a node, two fingers pinch-zoom
-let touchStart = null;
-cv.addEventListener('touchstart', e => {
-  if (e.touches.length === 1) {
-    const t = e.touches[0], n = nodeAt(t.clientX, t.clientY);
-    if (n) dragging = n; else touchStart = {x:t.clientX, y:t.clientY, px:panX, py:panY};
-  }
-}, {passive:true});
-cv.addEventListener('touchmove', e => {
-  if (e.touches.length === 1) {
-    const t = e.touches[0];
-    if (dragging) { dragging.x = (t.clientX-panX)/zoom; dragging.y = (t.clientY-40-panY)/zoom; }
-    else if (touchStart) { panX = touchStart.px+(t.clientX-touchStart.x); panY = touchStart.py+(t.clientY-touchStart.y); }
-  }
-}, {passive:true});
-cv.addEventListener('touchend', () => { dragging = null; touchStart = null; });
+// touch: one finger drags a cell or pans
+let touchFrom=null;
+cv.addEventListener('touchstart', e=>{
+  const t=e.touches[0]; if(!t) return;
+  const n=at(t.clientX,t.clientY);
+  if(n){ drag=n; openSide(n); } else touchFrom={x:t.clientX,y:t.clientY,px:panX,py:panY};
+},{passive:true});
+cv.addEventListener('touchmove', e=>{
+  const t=e.touches[0]; if(!t) return;
+  if(drag){ drag.x=(t.clientX-panX)/zoom; drag.y=(t.clientY-TOP-panY)/zoom; settle=Math.max(settle,.35); }
+  else if(touchFrom){ panX=touchFrom.px+(t.clientX-touchFrom.x); panY=touchFrom.py+(t.clientY-touchFrom.y); }
+},{passive:true});
+cv.addEventListener('touchend', ()=>{ drag=null; touchFrom=null; });
 
+const fitBtn = document.getElementById('fitBtn');
+if(fitBtn) fitBtn.onclick = ()=>{ settle=Math.max(settle,.25); fit(); };
+
+document.querySelectorAll('.chip').forEach(ch=>{
+  ch.onclick=()=>{ visible[ch.dataset.kind]=!visible[ch.dataset.kind];
+                   rebuild(); for(let i=0;i<400;i++) tick(0.016); fit(); };
+});
+addEventListener('resize', ()=>{ resize(); fit(); });
+
+// The header grows a row when the chips wrap, which happens AFTER the first
+// measurement. Without this the canvas is sized against a header that no
+// longer exists and the whole graph sits low on the page.
+if(window.ResizeObserver){
+  const ro = new ResizeObserver(()=>{ resize(); fit(); });
+  ro.observe(document.getElementById('bar'));
+  ro.observe(document.getElementById('hint'));
+}
+addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeSide(); pathSet=new Set(); } });
+
+/* ---------- realtime: fire on actual memory writes ---------- */
+let lastSeen = 0, thinkingUntil = 0, pollTimer = null;
+
+function markThinking(ms){
+  thinkingUntil = Math.max(thinkingUntil, performance.now() + ms);
+}
+
+async function pollActivity(){
+  try{
+    const tok = sessionStorage.getItem('jarvis_token')
+             || localStorage.getItem('jarvis_dashboard_token') || '';
+    const r = await fetch(`/api/vault/changes?since=${lastSeen}`,
+                          tok ? {headers:{Authorization:'Bearer '+tok}} : {});
+    if(!r.ok) return;
+    const data = await r.json();
+    lastSeen = data.now || lastSeen;
+    const changed = (data.nodes||[]).map(n=>n.id).filter(id=>byId[id]);
+    if(changed.length){
+      markThinking(2500);
+      // Fire the cells that actually changed. Their neighbours light up as the
+      // signal reaches them, so a single new fact visibly ripples outward
+      // through everything related to it.
+      changed.forEach((id,i)=> setTimeout(()=>fire(byId[id],0), i*90));
+      // a write usually means the graph itself changed shape — refresh it
+      clearTimeout(pollTimer);
+      pollTimer = setTimeout(reload, 1200);
+    }
+  }catch(e){ /* offline: stay calm rather than inventing activity */ }
+}
+
+async function reload(){
+  try{
+    const tok = sessionStorage.getItem('jarvis_token')
+             || localStorage.getItem('jarvis_dashboard_token') || '';
+    const r = await fetch('/api/vault/graph', tok ? {headers:{Authorization:'Bearer '+tok}} : {});
+    if(!r.ok) return;
+    const g = await r.json();
+    const before = new Set(ALL.nodes.map(n=>n.id));
+    ALL = {nodes:g.nodes||[], edges:g.edges||[]};
+    rebuild();
+    // brand-new cells arrive lit, so you can see WHAT was just learned
+    ALL.nodes.filter(n=>!before.has(n.id) && byId[n.id])
+             .forEach((n,i)=> setTimeout(()=>fire(byId[n.id],0), i*120));
+  }catch(e){}
+}
+
+function startRealtime(){
+  lastSeen = Date.now()/1000;
+  setInterval(pollActivity, 3000);
+}
+
+/* ---------- boot ---------- */
+function render(g){
+  ALL = {nodes:g.nodes||[], edges:g.edges||[]};
+  const groups = ALL.nodes.filter(n=>n.type==='hub').map(n=>n.label).sort();
+  GROUP_COLOR = {};
+  groups.forEach((name,i)=>{ GROUP_COLOR[name] = PALETTE[i % PALETTE.length]; });
+  document.getElementById('state').textContent =
+    g.stale ? 'MacBook offline — last known state'
+            : `${ALL.nodes.filter(n=>n.type!=='hub').length} memories`;
+  rebuild();
+  now = performance.now();
+  for(let i=0;i<400;i++) tick(0.016);   // settle before the first frame
+  fit();
+  // Two frames later the fonts and chip wrapping have settled, so the
+  // measurements fit() relied on are finally the real ones.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ resize(); fit(); }));
+  setTimeout(()=>{ resize(); fit(); }, 400);
+}
+
+/* ---------- boot ---------- */
 resize();
 loop();
-load();
+(async () => {
+  const tok = sessionStorage.getItem('jarvis_token')
+           || localStorage.getItem('jarvis_dashboard_token') || '';
+  try {
+    const r = await fetch('/api/vault/graph', tok ? {headers:{Authorization:'Bearer '+tok}} : {});
+    if (r.ok) { render(await r.json()); startRealtime(); return; }
+    document.getElementById('state').textContent = 'could not load (' + r.status + ')';
+  } catch (e) {
+    document.getElementById('state').textContent = 'could not reach the vault';
+  }
+})();
 </script>
 </body>
 </html>
