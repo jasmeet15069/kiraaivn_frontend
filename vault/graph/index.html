@@ -330,6 +330,21 @@ function tick(dt){
   settle *= 0.985;
 }
 
+// A force layout does not reach equilibrium the instant it is built, and how
+// long it takes depends on how many cells there are: a dense vault settles into
+// a ball almost at once, while a nearly-empty one keeps drifting apart for a
+// second or two as repulsion pushes the few cells outward. Fitting once on load
+// therefore framed the graph correctly only for the big case — clear the vault
+// down to a handful of memories and they slid off the edge right after the fit.
+// So keep re-fitting while the layout is still moving.
+let settleUntil = 0, lastFitAt = 0;
+
+function keepFitted(t){
+  if(t > settleUntil || t - lastFitAt < 150) return;
+  lastFitAt = t;
+  fit();
+}
+
 function fit(){
   if(!nodes.length) return;
   let a=1e9,b=1e9,c=-1e9,d=-1e9;
@@ -509,6 +524,7 @@ function loop(){
   const t = performance.now();
   const dt = Math.min(0.05, (t-lastT)/1000);
   lastT = t; now = t;
+  keepFitted(t);
 
   // TWO KINDS OF ACTIVITY, deliberately distinguishable.
   //
@@ -748,6 +764,7 @@ async function reload(){
     const g = await r.json();
     const before = new Set(ALL.nodes.map(n=>n.id));
     ALL = {nodes:g.nodes||[], edges:g.edges||[]};
+    settleUntil = performance.now() + 2500;
     rebuild();
     // brand-new cells arrive lit, so you can see WHAT was just learned
     ALL.nodes.filter(n=>!before.has(n.id) && byId[n.id])
@@ -762,6 +779,7 @@ function startRealtime(){
 
 /* ---------- boot ---------- */
 function render(g){
+  settleUntil = performance.now() + 4000;
   ALL = {nodes:g.nodes||[], edges:g.edges||[]};
   const groups = ALL.nodes.filter(n=>n.type==='hub').map(n=>n.label).sort();
   GROUP_COLOR = {};
@@ -778,7 +796,6 @@ function render(g){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{ resize(); fit(); }));
   setTimeout(()=>{ resize(); fit(); }, 400);
 }
-
 /* ---------- boot ---------- */
 resize();
 loop();
