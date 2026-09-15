@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>MacBook — Remote Control</title>
+<style>
+  :root{
+    --bg:#07090f; --panel:#12151d; --line:#232936; --txt:#dde3ed;
+    --dim:#7c879b; --accent:#6366f1; --ok:#22c55e; --warn:#f59e0b; --bad:#f87171;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+  #bar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);
+    border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .pill{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+  button{background:#1b2030;color:var(--txt);border:1px solid var(--line);
+    border-radius:8px;padding:7px 10px;font-size:12px;font-weight:600}
+  button:active{transform:translateY(1px)}
+  button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.danger{border-color:#7f1d1d;color:#fca5a5}
+  .spacer{flex:1}
+  #stage{position:relative;width:100%;height:calc(100% - 96px);
+    background:#000;overflow:hidden;touch-action:none}
+  canvas{position:absolute;transform-origin:0 0;image-rendering:auto}
+  #cursor{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;
+    border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #000,0 0 8px rgba(0,0,0,.6);
+    pointer-events:none;display:none;z-index:5}
+  #cursor.show{display:block}
+  #keys{display:flex;gap:6px;padding:6px 8px;background:var(--panel);
+    border-top:1px solid var(--line);overflow-x:auto}
+  #keys button{white-space:nowrap;font-size:11px;padding:6px 9px}
+  #hidden{position:absolute;left:-9999px;opacity:0;height:1px;width:1px}
+  #toast{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);
+    background:rgba(0,0,0,.85);border:1px solid var(--line);padding:8px 14px;
+    border-radius:20px;font-size:12px;opacity:0;transition:.25s;pointer-events:none;z-index:20}
+  #toast.show{opacity:1}
+  #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:24px;font-size:14px;color:var(--dim);z-index:10}
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <span class="pill"><span class="dot" id="dot"></span><span id="state">connecting…</span></span>
+  <span class="pill" id="mode-label">trackpad</span>
+  <div class="spacer"></div>
+  <button id="btn-mode">Trackpad</button>
+  <button id="btn-left">L‑Click</button>
+  <button id="btn-right">R‑Click</button>
+  <button id="btn-kbd">⌨︎</button>
+  <button id="btn-fit">Fit</button>
+</div>
+
+<div id="stage">
+  <canvas id="screen"></canvas>
+  <div id="cursor"></div>
+  <div id="msg">Connecting to the MacBook…</div>
+  <div id="toast"></div>
+</div>
+
+<div id="keys">
+  <button data-mod="cmd">⌘</button>
+  <button data-mod="ctrl">⌃</button>
+  <button data-mod="alt">⌥</button>
+  <button data-mod="shift">⇧</button>
+  <button data-key="Escape">esc</button>
+  <button data-key="Tab">tab</button>
+  <button data-key="Enter">⏎</button>
+  <button data-key="Backspace">⌫</button>
+  <button data-key="ArrowUp">↑</button>
+  <button data-key="ArrowDown">↓</button>
+  <button data-key="ArrowLeft">←</button>
+  <button data-key="ArrowRight">→</button>
+</div>
+
+<input id="hidden" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const canvas = $("screen"), ctx = canvas.getContext("2d", {alpha:false});
+  const stage = $("stage"), cursorEl = $("cursor"), hidden = $("hidden");
+
+  const Q = new URLSearchParams(location.search);
+  const TOKEN = Q.get("token") || "";
+
+  // WHERE THE SOCKET GOES.
+  // Served BY the Mac (localhost) or through nginx in front of the tunnel
+  // (sslip.io) -> the websocket is same-origin, just append /ws.
+  // Served from VERCEL -> it cannot be same-origin: a Vercel rewrite proxies
+  // HTTP but does NOT perform the `Upgrade: websocket` handshake, so the page
+  // may come from vercel.app while the stream must go straight to the tunnel
+  // host. `?host=` overrides for anyone running a different endpoint.
+  const LOCAL = ["127.0.0.1", "localhost", "::1"].includes(location.hostname);
+  const SAME_ORIGIN = LOCAL || location.hostname.endsWith("sslip.io");
+  const BACKEND = (Q.get("host") || "kira-chat.167-233-158-179.sslip.io/macbook")
+                    .replace(/^wss?:\/\//, "").replace(/\/$/, "");
+  const WS_URL = SAME_ORIGIN
+    ? (location.protocol === "https:" ? "wss://" : "ws://")
+        + location.host + location.pathname.replace(/\/$/, "")
+        + "/ws?token=" + encodeURIComponent(TOKEN)
+    : "wss://" + BACKEND + "/ws?token=" + encodeURIComponent(TOKEN);
+
+  let ws = null, allowInput = false;
+  let imgW = 0, imgH = 0;              // natural size of incoming frames
+  let scale = 1, offX = 0, offY = 0;   // canvas placement in the stage
+  let trackpad = true;                 // PLAN.md C.1: trackpad is the default
+  let cur = {x:0.5, y:0.5};            // normalised cursor position
+  const mods = new Set();
+
+  function toast(t){ const el=$("toast"); el.textContent=t; el.classList.add("show");
+    clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),1600); }
+
+  function setState(txt, cls){ $("state").textContent = txt;
+    $("dot").className = "dot" + (cls ? " "+cls : ""); }
+
+  function send(o){ if(ws && ws.readyState === 1){ o.mods = [...mods]; ws.send(JSON.stringify(o)); } }
+
+  // ── layout ────────────────────────────────────────────────────────────────
+  function fit(){
+    if(!imgW) return;
+    const sw = stage.clientWidth, sh = stage.clientHeight;
+    scale = Math.min(sw/imgW, sh/imgH);
+    offX = (sw - imgW*scale)/2; offY = (sh - imgH*scale)/2;
+    canvas.style.width = imgW+"px"; canvas.style.height = imgH+"px";
+    canvas.style.transform = `translate(${offX}px,${offY}px) scale(${scale})`;
+    drawCursor();
+  }
+  function drawCursor(){
+    if(!trackpad){ cursorEl.classList.remove("show"); return; }
+    cursorEl.classList.add("show");
+    cursorEl.style.left = (offX + cur.x*imgW*scale) + "px";
+    cursorEl.style.top  = (offY + cur.y*imgH*scale) + "px";
+  }
+  // stage point -> normalised screen coords (direct mode)
+  function toNorm(clientX, clientY){
+    const r = stage.getBoundingClientRect();
+    return { x: Math.max(0,Math.min(1,((clientX-r.left)-offX)/(imgW*scale))),
+             y: Math.max(0,Math.min(1,((clientY-r.top )-offY)/(imgH*scale))) };
+  }
+  function moveBy(dx, dy){
+    // trackpad: relative motion, with a little acceleration for long swipes
+    const speed = 1.6 / Math.max(scale, 0.25);
+    cur.x = Math.max(0, Math.min(1, cur.x + (dx*speed)/(imgW*scale)));
+    cur.y = Math.max(0, Math.min(1, cur.y + (dy*speed)/(imgH*scale)));
+    drawCursor(); send({type:"move", x:cur.x, y:cur.y});
+  }
+
+  // ── websocket ─────────────────────────────────────────────────────────────
+  function connect(){
+    setState("connecting…","");
+    ws = new WebSocket(WS_URL);
+    ws.binaryType = "arraybuffer";
+
+    ws.onopen = () => { setState("live","on"); $("msg").style.display="none"; };
+    ws.onclose = () => { setState("disconnected","off");
+      $("msg").style.display="flex";
+      $("msg").textContent="Disconnected — the MacBook may be asleep or the stream stopped. Reconnecting…";
+      setTimeout(connect, 2500); };
+    ws.onerror = () => setState("error","off");
+
+    ws.onmessage = async (ev) => {
+      if(typeof ev.data === "string"){
+        const m = JSON.parse(ev.data);
+        if(m.type === "hello"){
+          allowInput = !!m.input;
+          setState(allowInput ? "live · control" : "live · VIEW ONLY",
+                   allowInput ? "on" : "");
+          if(!allowInput) toast("View-only — input is disabled on the Mac");
+        }
+        return;
+      }
+      const bmp = await createImageBitmap(new Blob([ev.data], {type:"image/jpeg"}));
+      if(bmp.width !== imgW || bmp.height !== imgH){
+        imgW = bmp.width; imgH = bmp.height;
+        canvas.width = imgW; canvas.height = imgH;
+        fit();
+      }
+      ctx.drawImage(bmp, 0, 0); bmp.close();
+    };
+  }
+
+  // ── touch ─────────────────────────────────────────────────────────────────
+  let t0 = 0, moved = false, last = null, startN = null, twoFinger = false;
+  const TAP_MS = 250, TAP_SLOP = 12;
+
+  stage.addEventListener("touchstart", e => {
+    e.preventDefault();
+    t0 = Date.now(); moved = false;
+    twoFinger = e.touches.length >= 2;
+    last = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+    if(!trackpad && !twoFinger){ startN = toNorm(last.x, last.y); }
+  }, {passive:false});
+
+  stage.addEventListener("touchmove", e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const dx = t.clientX - last.x, dy = t.clientY - last.y;
+    if(Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+    if(e.touches.length >= 2){
+      twoFinger = true;
+      send({type:"scroll", dx: Math.round(dx), dy: Math.round(dy)});   // 2-finger = scroll
+    } else if(trackpad){
+      moveBy(dx, dy);
+    } else {
+      const n = toNorm(t.clientX, t.clientY);
+      cur = n; send({type:"move", x:n.x, y:n.y});
+    }
+    last = {x:t.clientX, y:t.clientY};
+  }, {passive:false});
+
+  stage.addEventListener("touchend", e => {
+    e.preventDefault();
+    const quick = (Date.now() - t0) < TAP_MS && !moved;
+    if(quick){
+      if(twoFinger){ send({type:"rclick", x:cur.x, y:cur.y}); toast("right click"); }
+      else {
+        if(!trackpad && startN){ cur = startN; }
+        send({type:"click", x:cur.x, y:cur.y});
+      }
+    }
+    twoFinger = false; startN = null;
+  }, {passive:false});
+
+  // ── mouse (desktop browsers) ──────────────────────────────────────────────
+  stage.addEventListener("mousedown", e => {
+    const n = toNorm(e.clientX, e.clientY); cur = n; drawCursor();
+    send({type:"down", x:n.x, y:n.y});
+  });
+  stage.addEventListener("mousemove", e => {
+    if(e.buttons === 0) return;
+    const n = toNorm(e.clientX, e.clientY); cur = n; drawCursor();
+    send({type:"move", x:n.x, y:n.y});
+  });
+  stage.addEventListener("mouseup", e => {
+    const n = toNorm(e.clientX, e.clientY); send({type:"up", x:n.x, y:n.y});
+  });
+  stage.addEventListener("contextmenu", e => {
+    e.preventDefault(); const n = toNorm(e.clientX, e.clientY);
+    send({type:"rclick", x:n.x, y:n.y});
+  });
+  stage.addEventListener("wheel", e => {
+    e.preventDefault();
+    send({type:"scroll", dx:-Math.round(e.deltaX), dy:-Math.round(e.deltaY)});
+  }, {passive:false});
+
+  // ── keyboard ──────────────────────────────────────────────────────────────
+  // A hidden input summons the phone's own keyboard. We read COMMITTED text
+  // rather than keycodes: mobile IMEs report keyCode 229 while composing, and
+  // autocorrect rewrites whole words after the fact.
+  const SENTINEL = "​";      // so Backspace always has something to delete
+  function armHidden(){ hidden.value = SENTINEL; }
+
+  hidden.addEventListener("input", () => {
+    const v = hidden.value;
+    if(v.length > SENTINEL.length){
+      send({type:"text", text: v.slice(SENTINEL.length)});
+    }
+    armHidden();
+  });
+  hidden.addEventListener("keydown", e => {
+    if(e.key === "Backspace" && hidden.value === SENTINEL){
+      e.preventDefault(); send({type:"key", key:"Backspace"});
+    } else if(e.key === "Enter"){
+      e.preventDefault(); send({type:"key", key:"Enter"});
+    }
+  });
+
+  $("btn-kbd").onclick = () => { armHidden(); hidden.focus(); toast("keyboard — type to send"); };
+
+  // sticky modifiers + special keys
+  document.querySelectorAll("#keys button").forEach(b => {
+    b.onclick = () => {
+      const m = b.dataset.mod, k = b.dataset.key;
+      if(m){
+        if(mods.has(m)){ mods.delete(m); b.classList.remove("on"); }
+        else { mods.add(m); b.classList.add("on"); }
+      } else if(k){
+        send({type:"key", key:k});
+        mods.clear();
+        document.querySelectorAll("#keys button.on").forEach(x=>x.classList.remove("on"));
+      }
+    };
+  });
+
+  // ── toolbar ───────────────────────────────────────────────────────────────
+  $("btn-mode").onclick = () => {
+    trackpad = !trackpad;
+    $("btn-mode").textContent = trackpad ? "Trackpad" : "Direct";
+    $("mode-label").textContent = trackpad ? "trackpad" : "direct tap";
+    drawCursor();
+    toast(trackpad ? "Trackpad: drag to move, tap to click"
+                   : "Direct: tap exactly where you want to click");
+  };
+  $("btn-left").onclick  = () => { send({type:"click",  x:cur.x, y:cur.y}); toast("left click"); };
+  $("btn-right").onclick = () => { send({type:"rclick", x:cur.x, y:cur.y}); toast("right click"); };
+  $("btn-fit").onclick   = () => { fit(); toast("fitted"); };
+
+  window.addEventListener("resize", fit);
+  armHidden();
+  connect();
+})();
+</script>
+</body>
+</html>
