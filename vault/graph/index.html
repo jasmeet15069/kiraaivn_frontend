@@ -236,15 +236,18 @@ document.querySelectorAll('.chip').forEach(ch=>{
 /* ---------- firing ---------- */
 const MAX_SIGNALS = 90;
 
-function fire(node, depth){
+function fire(node, depth, power){
   if(!node || depth > 2) return;                 // cascades die out, as they must
+  power = power === undefined ? 1 : power;
   node.fired = now;
+  node.power = power;
   for(const e of (edgeOf[node.id]||[])){
     if(signals.length >= MAX_SIGNALS) break;
     const other = e.source===node ? e.target : e.source;
-    if(Math.random() < 0.45) continue;           // not every synapse carries
+    // A resting blip travels one or two synapses; real work lights the street.
+    if(Math.random() < (power < 0.5 ? 0.82 : 0.45)) continue;
     signals.push({e, from:node, to:other, t:0,
-                  speed: 0.5 + Math.random()*0.5, depth});
+                  speed: 0.5 + Math.random()*0.5, depth, power});
   }
 }
 
@@ -254,7 +257,8 @@ function stepSignals(dt){
     s.t += dt * s.speed * 1.5;
     if(s.t >= 1){
       signals.splice(i,1);
-      if(Math.random() < 0.3) fire(s.to, s.depth+1);   // sometimes it spreads
+      // resting blips rarely cascade; real activity does
+      if(Math.random() < (s.power < 0.5 ? 0.07 : 0.3)) fire(s.to, s.depth+1, s.power);
     }
   }
 }
@@ -401,7 +405,7 @@ function draw(){
     const x=ax+(bx-ax)*s.t, y=ay+(by-ay)*s.t;
     const col = colorOf(s.from);
     const [r,g,b] = hex2rgb(col);
-    const fade = Math.sin(Math.PI*s.t);              // brightest mid-flight
+    const fade = Math.sin(Math.PI*s.t) * (s.power === undefined ? 1 : (0.35 + s.power*0.65));
     const tail = 0.13;
     const tx = ax+(bx-ax)*Math.max(0,s.t-tail), ty = ay+(by-ay)*Math.max(0,s.t-tail);
     const grad = ctx.createLinearGradient(tx,ty,x,y);
@@ -417,7 +421,8 @@ function draw(){
     const dim = live && !live.has(n.id);
     if(dim) continue;
     const since = (now - n.fired)/700;
-    const active = since >= 0 && since < 1 ? 1-since : 0;
+    const active = (since >= 0 && since < 1 ? 1-since : 0)
+                 * (n.power === undefined ? 1 : (0.3 + n.power*0.7));
     const breathe = 0.5 + 0.5*Math.sin(now/1000*n.rate + n.seed);
     const glow = (n.type==='hub' ? 0.10 : 0.05) + active*0.45 + breathe*0.015;
     if(glow <= 0.02) continue;
@@ -487,9 +492,24 @@ function loop(){
   const dt = Math.min(0.05, (t-lastT)/1000);
   lastT = t; now = t;
 
-  // NOTHING fires on its own any more. A sparkle means a real write landed in
-  // the shared vault — JARVIS or the chat actually thinking — so a quiet graph
-  // is the truth rather than a screensaver. See pollActivity().
+  // TWO KINDS OF ACTIVITY, deliberately distinguishable.
+  //
+  // Resting: a slow, dim trickle. A brain at rest is not a still image — its
+  // cells fire at a low baseline — so a graph that freezes solid whenever
+  // nothing is happening reads as broken rather than idle.
+  //
+  // Thinking: when a real write lands in the shared vault (pollActivity), the
+  // cells that actually changed fire hard and bright, and the header says so.
+  // The difference in rate and brightness is what carries the meaning: you can
+  // tell at a glance whether it is ticking over or genuinely working.
+  sinceFire += dt;
+  const busy = now < thinkingUntil;
+  const restInterval = busy ? 0.25 : 2.4;
+  if(sinceFire > restInterval && nodes.length){
+    sinceFire = 0;
+    const pool = nodes.filter(n=>n.type!=='hub');
+    if(pool.length) fire(pool[Math.random()*pool.length|0], 0, busy ? 1 : 0.28);
+  }
 
   const thinking = now < thinkingUntil || signals.length > 0;
   const st = document.getElementById('state');
