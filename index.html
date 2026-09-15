@@ -684,6 +684,9 @@ body{
       <button class="icon-btn" id="connectorBtn" aria-label="System connector" title="System connector">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="8" height="6" rx="1"/><rect x="14" y="9" width="8" height="6" rx="1"/><path d="M10 12h4"/></svg>
       </button>
+      <button class="icon-btn" id="graphBtn" aria-label="Memory graph" title="Memory graph — the shared vault JARVIS and this chat both use">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="7" r="2.2"/><circle cx="12" cy="12" r="2.6"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M7 7l3 4M17 8.5l-3 2M10.5 14l-3 3.5M14 14l3 2.5"/></svg>
+      </button>
       <button class="icon-btn" id="dashboardBtn" aria-label="VPS monitor" title="VPS monitor">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
       </button>
@@ -882,6 +885,7 @@ body{
     toolsCloseBtn: document.getElementById('toolsCloseBtn'),
     toolsList: document.getElementById('toolsList'),
     toolsLastUsed: document.getElementById('toolsLastUsed'),
+    graphBtn: document.getElementById('graphBtn'),
     connectorBtn: document.getElementById('connectorBtn'),
     connectorSidebar: document.getElementById('connectorSidebar'),
     connectorCloseBtn: document.getElementById('connectorCloseBtn'),
@@ -1075,9 +1079,14 @@ body{
     openSidebar(els.toolsSidebar);
     if (!toolsDataLoaded) loadToolsData();
   });
+  els.graphBtn.addEventListener('click', function(){
+    window.open('/vault/graph/', '_blank', 'noopener');
+  });
+
   els.connectorBtn.addEventListener('click', function(){
     openSidebar(els.connectorSidebar);
     if (!toolsDataLoaded) loadToolsData();
+    startConnectorPolling();
   });
   els.toolsCloseBtn.addEventListener('click', closeSidebars);
   els.connectorCloseBtn.addEventListener('click', closeSidebars);
@@ -1543,6 +1552,27 @@ body{
     }).catch(function(){
       els.dashboardUpdated.textContent = 'Could not reach the VPS status endpoint.';
     });
+  }
+
+  // The connector list is live state: a machine can connect or drop at any
+  // moment. loadToolsData() is a one-shot (toolsDataLoaded), so on its own it
+  // renders whatever was true when you FIRST opened the panel and never
+  // corrects itself. This refetches while the panel is actually open.
+  var connectorPoll = null;
+
+  function refreshConnectorStatus(){
+    apiFetch('/api/tools').then(function(res){ return res.json(); })
+      .then(function(data){ toolsDataCache = data; renderConnectorStatus(data); })
+      .catch(function(){ /* leave the last good render in place */ });
+  }
+
+  function startConnectorPolling(){
+    refreshConnectorStatus();
+    if (connectorPoll) clearInterval(connectorPoll);
+    connectorPoll = setInterval(function(){
+      if (els.connectorSidebar.classList.contains('open')) refreshConnectorStatus();
+      else { clearInterval(connectorPoll); connectorPoll = null; }
+    }, 10000);
   }
 
   function loadToolsData(){
