@@ -87,7 +87,17 @@
   const stage = $("stage"), cursorEl = $("cursor"), hidden = $("hidden");
 
   const Q = new URLSearchParams(location.search);
-  const TOKEN = Q.get("token") || "";
+
+  // TOKEN HANDLING.
+  // Precedence: ?token= (explicit) > previously saved. An explicit one is
+  // remembered so the connector panel can link here with NO secret in the URL —
+  // a link with a token in it gets copied, screenshotted and pasted into chats,
+  // which is exactly how the first token leaked.
+  let TOKEN = Q.get("token") || "";
+  try {
+    if (TOKEN) localStorage.setItem("jarvis_screen_token", TOKEN);
+    else TOKEN = localStorage.getItem("jarvis_screen_token") || "";
+  } catch (e) { /* private mode: fall through to the prompt */ }
 
   // WHERE THE SOCKET GOES.
   // Served BY the Mac (localhost) or through nginx in front of the tunnel
@@ -301,9 +311,40 @@
   $("btn-right").onclick = () => { send({type:"rclick", x:cur.x, y:cur.y}); toast("right click"); };
   $("btn-fit").onclick   = () => { fit(); toast("fitted"); };
 
+  function askForToken(){
+    const m = $("msg");
+    m.style.display = "flex";
+    m.innerHTML =
+      '<div style="max-width:320px">' +
+      '<div style="font-weight:700;color:var(--txt);margin-bottom:6px">Access key needed</div>' +
+      '<div style="margin-bottom:12px">Paste the MacBook\'s screen token. It is stored on this ' +
+      'device only, so you only do this once.</div>' +
+      '<input id="tok-in" type="password" autocomplete="off" placeholder="screen token" ' +
+      'style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);' +
+      'background:#0d1017;color:var(--txt);font-size:14px;margin-bottom:8px">' +
+      '<button id="tok-go" style="width:100%;padding:10px;background:var(--accent);' +
+      'border-color:var(--accent);color:#fff">Connect</button></div>';
+    const go = () => {
+      const v = document.getElementById("tok-in").value.trim();
+      if (!v) return;
+      try { localStorage.setItem("jarvis_screen_token", v); } catch (e) {}
+      location.replace(location.pathname);   // reload clean, no token in the URL
+    };
+    document.getElementById("tok-go").onclick = go;
+    document.getElementById("tok-in").addEventListener("keydown",
+      e => { if (e.key === "Enter") go(); });
+  }
+
   window.addEventListener("resize", fit);
   armHidden();
-  connect();
+  if (TOKEN) {
+    // Drop the token out of the address bar so it is not left in history,
+    // screenshots or the back stack.
+    if (Q.get("token")) history.replaceState(null, "", location.pathname);
+    connect();
+  } else {
+    askForToken();
+  }
 })();
 </script>
 </body>

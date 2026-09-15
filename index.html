@@ -328,7 +328,14 @@ body{
 .connector-status{
   font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:4px;
   background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
 }
+.connector-screen{
+  flex:none;font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap;
+  padding:4px 10px;border-radius:6px;
+  background:var(--surface);border:1px solid var(--border);color:var(--text);
+}
+.connector-screen:hover{border-color:#6366f1;color:#6366f1;}
 
 .login-screen{
   position:fixed;inset:0;z-index:100;
@@ -1571,7 +1578,16 @@ body{
     if (data.connectors && data.connectors.length){
       els.connectorStatusList.innerHTML = data.connectors.map(function(c){
         var status = c.connected ? '🟢 Connected' : '⚪ Registered, but not connected right now';
-        return '<div class="connector-status"><strong>' + escapeHtml(c.name) + '</strong> — ' + status + '</div>';
+        // Only the MacBook runs a screen server, and only while it is actually
+        // connected — linking to a sleeping machine just yields a dead page.
+        // No token in the href on purpose: the page asks once and remembers it,
+        // so this link can live in a public repo and be safely screenshotted.
+        var link = (c.connected && /jarvis/i.test(c.name))
+          ? '<a class="connector-screen" href="/macbook/remotecontrol/" target="_blank" rel="noopener"'
+            + ' title="Live screen + touch control of this machine">🖥 Screen</a>'
+          : '';
+        return '<div class="connector-status"><span><strong>' + escapeHtml(c.name)
+             + '</strong> — ' + status + '</span>' + link + '</div>';
       }).join('');
     } else {
       els.connectorStatusList.innerHTML = '<p class="connector-status">No external systems registered yet. This VPS itself is never a valid target — only machines you explicitly register below.</p>';
