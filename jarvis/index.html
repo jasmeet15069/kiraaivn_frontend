@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#00060a">
+<title>J.A.R.V.I.S</title>
+<style>
+  /* Palette lifted verbatim from core/hud_reactor.py so the web HUD matches the
+     real Mark LIII arc reactor. */
+  :root{
+    --bg:#00060a; --panel:#010d14; --border:#0d3347; --border-b:#1a5c7a;
+    --pri:#00d4ff; --pri-dim:#007a99; --pri-gho:#001f2e;
+    --acc:#ff6b00; --acc2:#ffcc00; --green:#00ff88; --red:#ff3355;
+    --text:#8ffcff; --text-dim:#3a8a9a; --text-med:#5ab8cc; --white:#d8f8ff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow:hidden;
+    user-select:none;-webkit-user-select:none}
+  body{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    position:relative;
+    background:
+      radial-gradient(ellipse at 50% 42%, #042430 0%, #011018 42%, var(--bg) 78%);
+  }
+  /* faint scanline grid, like a readout surface */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size:44px 44px;
+    mask-image:radial-gradient(ellipse at 50% 42%, #000 20%, transparent 72%);
+    -webkit-mask-image:radial-gradient(ellipse at 50% 42%, #000 20%, transparent 72%);
+  }
+
+  /* corner HUD glyphs — flavour, same idea as the desktop HUD corners */
+  .corner{position:fixed;font-size:10px;letter-spacing:1px;color:var(--text-dim);
+    line-height:1.7;opacity:.6;z-index:2;text-transform:uppercase}
+  .corner.tl{top:14px;left:16px}
+  .corner.tr{top:14px;right:16px;text-align:right}
+  .corner.bl{bottom:14px;left:16px}
+  .corner.br{bottom:14px;right:16px;text-align:right}
+  .corner b{color:var(--pri);font-weight:600}
+
+  /* ── the reactor ── */
+  .reactor{position:relative;width:min(78vw,340px);aspect-ratio:1;cursor:pointer;
+    filter:drop-shadow(0 0 28px rgba(0,212,255,.25))}
+  .reactor svg{width:100%;height:100%;overflow:visible;display:block}
+  .spin{transform-origin:200px 200px;animation:spin 18s linear infinite}
+  .spin-rev{transform-origin:200px 200px;animation:spin 26s linear infinite reverse}
+  .spin-slow{transform-origin:200px 200px;animation:spin 60s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .core-glow{transform-origin:200px 200px;animation:breathe 3.6s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.7;transform:scale(.97)}50%{opacity:1;transform:scale(1.04)}}
+  .tick{animation:flick 4s steps(1) infinite}
+  @keyframes flick{0%,97%{opacity:.85}98%,100%{opacity:.4}}
+
+  .name{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    pointer-events:none}
+  .name span{font-size:clamp(15px,4.6vw,21px);letter-spacing:.42em;font-weight:600;
+    color:var(--white);padding-left:.42em;
+    text-shadow:0 0 10px var(--pri),0 0 22px rgba(0,212,255,.55)}
+
+  .status{margin-top:26px;font-size:12px;letter-spacing:3px;font-weight:600;
+    color:var(--pri);text-shadow:0 0 10px rgba(0,212,255,.6);display:flex;
+    align-items:center;gap:9px;height:16px}
+  .status .dot{width:8px;height:8px;border-radius:50%;background:var(--pri);
+    box-shadow:0 0 8px var(--pri);animation:blink 1.4s ease-in-out infinite}
+  .status.off{color:var(--red)} .status.off .dot{background:var(--red);box-shadow:0 0 8px var(--red)}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* ── launcher buttons ── */
+  .actions{margin-top:30px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+    padding:0 18px;max-width:440px}
+  .act{appearance:none;background:rgba(1,21,32,.72);border:1px solid var(--border-b);
+    color:var(--text);border-radius:13px;padding:14px 20px;font:inherit;font-size:13px;
+    font-weight:600;letter-spacing:1px;text-transform:uppercase;text-decoration:none;
+    display:flex;align-items:center;gap:10px;min-width:150px;justify-content:center;
+    transition:.15s;cursor:pointer;backdrop-filter:blur(4px)}
+  .act .ico{font-size:17px;line-height:1}
+  .act:active{transform:translateY(1px)}
+  .act.primary{border-color:var(--pri);color:var(--white);
+    box-shadow:0 0 0 1px rgba(0,212,255,.15),0 0 22px rgba(0,212,255,.18) inset}
+  .act.primary:hover{box-shadow:0 0 26px rgba(0,212,255,.28)}
+  .act.ghost:hover{border-color:var(--pri-dim)}
+  .act small{display:block;font-size:9px;letter-spacing:1px;color:var(--text-dim);
+    text-transform:uppercase;margin-top:3px;font-weight:500}
+
+  .hint{margin-top:20px;font-size:10.5px;color:var(--text-dim);letter-spacing:.5px;
+    text-align:center;padding:0 24px;max-width:360px;line-height:1.6}
+
+  /* tap ripple on the reactor */
+  .ripple{position:absolute;inset:0;border-radius:50%;border:1px solid var(--pri);
+    opacity:0;pointer-events:none}
+  .ripple.go{animation:rip .6s ease-out}
+  @keyframes rip{from{opacity:.6;transform:scale(.72)}to{opacity:0;transform:scale(1.12)}}
+</style>
+</head>
+<body>
+  <div class="corner tl">J.A.R.V.I.S <b>MK&nbsp;LIII</b><br>remote interface</div>
+  <div class="corner tr">SYS&nbsp;<b id="sys">· · ·</b><br><span id="clock">--:--:--</span></div>
+  <div class="corner bl">ARC&nbsp;REACTOR<br>output <b>nominal</b></div>
+  <div class="corner br">link&nbsp;<b>wss</b><br>enc <b>AES-256</b></div>
+
+  <div class="reactor" id="reactor" role="button" aria-label="JARVIS">
+    <div class="ripple" id="ripple"></div>
+    <svg viewBox="0 0 400 400" aria-hidden="true">
+      <defs>
+        <radialGradient id="core" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stop-color="#eaffff"/>
+          <stop offset="24%" stop-color="#8ff6ff"/>
+          <stop offset="52%" stop-color="#00d4ff"/>
+          <stop offset="80%" stop-color="#015f7a"/>
+          <stop offset="100%" stop-color="#001018"/>
+        </radialGradient>
+        <radialGradient id="lens" cx="50%" cy="38%" r="65%">
+          <stop offset="0%" stop-color="#0a3647"/>
+          <stop offset="60%" stop-color="#021722"/>
+          <stop offset="100%" stop-color="#00070c"/>
+        </radialGradient>
+        <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="3.4" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- bloom behind outer band -->
+      <circle cx="200" cy="200" r="188" fill="none" stroke="#00d4ff" stroke-width="10"
+              opacity=".07" filter="url(#glow)"/>
+
+      <!-- outer band -->
+      <circle cx="200" cy="200" r="190" fill="none" stroke="#1a5c7a" stroke-width="1.3"/>
+      <circle cx="200" cy="200" r="182" fill="none" stroke="#1a5c7a" stroke-width="1.3"/>
+      <circle cx="200" cy="200" r="186" fill="none" stroke="#00d4ff" stroke-width="2.4"
+              opacity=".9" filter="url(#glow)"/>
+
+      <!-- radial ticks -->
+      <g class="spin-slow tick" stroke="#5ab8cc" stroke-width="1.4" opacity=".8">
+        <!-- 60 ticks generated inline -->
+        <g id="ticks"></g>
+      </g>
+
+      <!-- segmented ring, clockwise -->
+      <g class="spin" filter="url(#glow)">
+        <circle cx="200" cy="200" r="162" fill="none" stroke="#00d4ff" stroke-width="5"
+                stroke-dasharray="52 26 20 26 70 26" opacity=".95"/>
+      </g>
+      <!-- segmented ring, counter-clockwise (amber accent) -->
+      <g class="spin-rev" filter="url(#glow)">
+        <circle cx="200" cy="200" r="146" fill="none" stroke="#00d4ff" stroke-width="3"
+                stroke-dasharray="30 18" opacity=".8"/>
+        <circle cx="200" cy="200" r="146" fill="none" stroke="#ffcc00" stroke-width="3"
+                stroke-dasharray="14 150" opacity=".9"/>
+      </g>
+      <!-- thin dashed ring -->
+      <g class="spin-slow">
+        <circle cx="200" cy="200" r="128" fill="none" stroke="#007a99" stroke-width="1.4"
+                stroke-dasharray="3 9" opacity=".85"/>
+      </g>
+
+      <!-- recessed inner disc -->
+      <circle cx="200" cy="200" r="112" fill="url(#lens)" stroke="#0f4060" stroke-width="1.2"/>
+      <!-- inner lens rings -->
+      <circle cx="200" cy="200" r="98" fill="none" stroke="#0d3347" stroke-width="1"/>
+      <circle cx="200" cy="200" r="86" fill="none" stroke="#0f4060" stroke-width="1"/>
+      <!-- core -->
+      <g class="core-glow">
+        <circle cx="200" cy="200" r="74" fill="url(#core)"/>
+        <circle cx="200" cy="200" r="74" fill="none" stroke="#8ffcff" stroke-width="1.4"
+                opacity=".85" filter="url(#glow)"/>
+        <circle cx="200" cy="200" r="40" fill="#eaffff" opacity=".9" filter="url(#glow)"/>
+      </g>
+    </svg>
+    <div class="name"><span>J.A.R.V.I.S</span></div>
+  </div>
+
+  <div class="status" id="status"><span class="dot"></span><span id="statustxt">INITIALISING</span></div>
+
+  <div class="actions">
+    <a class="act primary" href="/macbook/remotecontrol/">
+      <span class="ico">🖥</span><span>Control Mac<small>live screen · touch</small></span>
+    </a>
+    <a class="act ghost" href="/">
+      <span class="ico">◉</span><span>Chat<small>talk to JARVIS</small></span>
+    </a>
+  </div>
+
+  <div class="hint">Tap <b style="color:var(--pri)">Control Mac</b> to see and drive the MacBook. First time on this device it asks for your dashboard password, then never again.</div>
+
+<script>
+(function(){
+  "use strict";
+  // ── corner ticks around the dial ──
+  var ticks = document.getElementById("ticks"), svgns="http://www.w3.org/2000/svg", html="";
+  for(var i=0;i<60;i++){
+    var a=i*6*Math.PI/180, r1=174, r2=(i%5===0)?165:170;
+    var x1=200+r1*Math.cos(a), y1=200+r1*Math.sin(a);
+    var x2=200+r2*Math.cos(a), y2=200+r2*Math.sin(a);
+    html+='<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" opacity="'+((i%5===0)?.95:.5)+'"/>';
+  }
+  ticks.innerHTML=html;
+
+  // ── clock ──
+  function tick(){
+    var d=new Date();
+    document.getElementById("clock").textContent=d.toTimeString().slice(0,8);
+  }
+  tick(); setInterval(tick,1000);
+
+  // ── live system status: ping the backend (public /api/health) ──
+  var statusEl=document.getElementById("status"), txt=document.getElementById("statustxt"),
+      sys=document.getElementById("sys");
+  // On vercel.app the /api/* rewrite points at the backend; elsewhere go direct.
+  var API = location.hostname.endsWith("vercel.app") ? "" :
+            "https://kira-chat.167-233-158-179.sslip.io";
+  function probe(){
+    fetch(API+"/api/health",{cache:"no-store"}).then(function(r){
+      if(r.ok){ statusEl.classList.remove("off"); txt.textContent="SYSTEMS ONLINE"; sys.textContent="OK"; }
+      else throw 0;
+    }).catch(function(){
+      statusEl.classList.add("off"); txt.textContent="LINK OFFLINE"; sys.textContent="—";
+    });
+  }
+  probe(); setInterval(probe,15000);
+
+  // ── reactor tap ripple → open chat ──
+  var reactor=document.getElementById("reactor"), ripple=document.getElementById("ripple");
+  reactor.addEventListener("click",function(){
+    ripple.classList.remove("go"); void ripple.offsetWidth; ripple.classList.add("go");
+    setTimeout(function(){ location.href="/"; }, 260);
+  });
+})();
+</script>
+</body>
+</html>
