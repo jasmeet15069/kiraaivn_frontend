@@ -584,25 +584,29 @@ body{
   letter-spacing:0.05em;
   color:var(--text-muted);
 }
-.tool-item{
-  padding:6px 0;
-  border-top:1px solid var(--border);
+.tool-box{
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:12px 14px;
   font-size:12.5px;
   cursor:pointer;
+  background:var(--panel, transparent);
+  transition:border-color .12s ease, box-shadow .12s ease;
 }
-.tool-item:first-child{border-top:none;}
-.tool-item:focus-visible{outline:2px solid var(--text-muted);outline-offset:2px;border-radius:4px;}
-.tool-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.tool-item .tool-name{
+.tool-box:hover{border-color:var(--text-muted);}
+.tool-box:focus-visible{outline:2px solid var(--text-muted);outline-offset:2px;}
+.tool-box-head{display:flex;align-items:center;gap:10px;}
+.tool-box-icon{font-size:16px;flex:none;}
+.tool-box-title{
   font-family:'JetBrains Mono',monospace;
   font-weight:600;
   color:var(--text);
+  flex:1 1 auto;
 }
-.tool-item:hover .tool-name{text-decoration:underline;text-underline-offset:2px;}
 .tool-caret{color:var(--text-muted);font-size:11px;flex:none;transition:transform .12s ease;}
-.tool-item[aria-expanded="true"] .tool-caret{transform:rotate(90deg);}
-.tool-detail{margin-top:4px;}
-.tool-item .tool-desc{color:var(--text-muted);margin-top:2px;line-height:1.5;}
+.tool-box[aria-expanded="true"] .tool-caret{transform:rotate(90deg);}
+.tool-detail{margin-top:10px;}
+.tool-box .tool-desc{color:var(--text-muted);margin-top:2px;line-height:1.5;}
 .tool-params{margin-top:6px;}
 .tool-params-label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:3px;}
 .tool-params code{display:block;font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--border);padding:6px 8px;border-radius:6px;color:var(--text);white-space:pre-wrap;word-break:break-word;}
@@ -1581,42 +1585,33 @@ body{
     });
   }
 
-  var TOOL_CATEGORY_ORDER = ['email', 'memory', 'task', 'sandbox', 'workspace', 'system', 'mcp', 'other'];
-  var TOOL_CATEGORY_LABELS = {
-    email: 'Email',
-    memory: 'Memory',
-    task: 'Background tasks',
-    sandbox: 'Sandbox',
-    workspace: 'Workspace',
-    system: 'System connectors',
-    mcp: 'MCP connector',
-    other: 'Other'
-  };
-
+  // Only the Email (Gmail) tool is surfaced in the panel, shown as a single
+  // box/card. Every other tool is intentionally hidden here.
   function renderTools(data){
-    var groups = {};
-    TOOL_CATEGORY_ORDER.forEach(function(c){ groups[c] = []; });
-    (data.tools || []).forEach(function(t){
-      (groups[t.category] ? groups[t.category] : groups.other).push(t);
-    });
-    var html = '';
-    TOOL_CATEGORY_ORDER.forEach(function(cat){
-      if (!groups[cat].length) return;
-      html += '<div class="tools-group"><h3>' + escapeHtml(TOOL_CATEGORY_LABELS[cat]) + '</h3>' +
-        groups[cat].map(function(t){
-          var params = t.params
-            ? '<div class="tool-params"><span class="tool-params-label">Parameters</span><code>' +
-                escapeHtml(t.params) + '</code></div>'
-            : '';
-          return '<div class="tool-item" tabindex="0" role="button" aria-expanded="false">' +
-            '<div class="tool-head"><span class="tool-name">' + escapeHtml(t.name) + '</span>' +
-            '<span class="tool-caret" aria-hidden="true">▸</span></div>' +
-            '<div class="tool-detail" hidden>' +
-              '<div class="tool-desc">' + escapeHtml(t.description) + '</div>' + params +
-            '</div></div>';
-        }).join('') + '</div>';
-    });
-    els.toolsList.innerHTML = html || '<p class="tools-empty">No tools available.</p>';
+    var tools = data.tools || [];
+    var t = null;
+    for (var i = 0; i < tools.length; i++){
+      if (tools[i].category === 'email' || tools[i].name === 'send_email'){ t = tools[i]; break; }
+    }
+    if (!t){
+      els.toolsList.innerHTML = '<p class="tools-empty">Email tool not available.</p>';
+      return;
+    }
+    var params = t.params
+      ? '<div class="tool-params"><span class="tool-params-label">Parameters</span><code>' +
+          escapeHtml(t.params) + '</code></div>'
+      : '';
+    els.toolsList.innerHTML =
+      '<div class="tool-box" tabindex="0" role="button" aria-expanded="false">' +
+        '<div class="tool-box-head">' +
+          '<span class="tool-box-icon" aria-hidden="true">✉️</span>' +
+          '<span class="tool-box-title">Email (Gmail)</span>' +
+          '<span class="tool-caret" aria-hidden="true">▸</span>' +
+        '</div>' +
+        '<div class="tool-detail" hidden>' +
+          '<div class="tool-desc">' + escapeHtml(t.description) + '</div>' + params +
+        '</div>' +
+      '</div>';
     bindToolsList();
   }
 
@@ -1637,12 +1632,12 @@ body{
     if (toolsListBound) return;
     toolsListBound = true;
     els.toolsList.addEventListener('click', function(e){
-      var item = e.target.closest('.tool-item');
+      var item = e.target.closest('.tool-box');
       if (item) toggleToolItem(item);
     });
     els.toolsList.addEventListener('keydown', function(e){
       if (e.key === 'Enter' || e.key === ' '){
-        var item = e.target.closest('.tool-item');
+        var item = e.target.closest('.tool-box');
         if (item){ e.preventDefault(); toggleToolItem(item); }
       }
     });
