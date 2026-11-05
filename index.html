@@ -814,10 +814,12 @@ body{
 <script>
 (function(){
   // Fallback list used only if /api/models can't be reached (e.g. backend briefly down).
+  // Local models are the default now (the cloud "kira" models are out of tokens).
   var MODELS = [
-    {id:'kira-mini-1.0', label:'Lite · Free', provider:'cloud'}
+    {id:'local-qwen2.5-3b', label:'Local · Qwen2.5 3B', provider:'local'},
+    {id:'local-dolphin-0.5b', label:'Local · Dolphin 0.5B (fast)', provider:'local'}
   ];
-  var DEFAULT_MODEL = 'kira-mini-1.0';
+  var DEFAULT_MODEL = 'local-qwen2.5-3b';
 
   function labelFor(id){
     for (var i=0;i<MODELS.length;i++){ if (MODELS[i].id===id) return MODELS[i].label; }
