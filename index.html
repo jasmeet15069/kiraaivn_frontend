@@ -611,6 +611,28 @@ body{
 .tool-params-label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:3px;}
 .tool-params code{display:block;font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--border);padding:6px 8px;border-radius:6px;color:var(--text);white-space:pre-wrap;word-break:break-word;}
 .tools-empty{font-size:12.5px;color:var(--text-muted);font-style:italic;}
+.wf-card{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--surface);}
+.wf-card.off{opacity:.72;}
+.wf-head{display:flex;align-items:flex-start;gap:12px;}
+.wf-icon{font-size:18px;flex:none;line-height:1.2;}
+.wf-main{flex:1 1 auto;min-width:0;}
+.wf-title{font-weight:700;font-size:13.5px;color:var(--text);}
+.wf-sched{font-size:12px;color:var(--accent);margin-top:2px;}
+.wf-detail{font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;}
+.wf-last{font-size:11.5px;color:var(--text-muted);margin-top:10px;overflow-wrap:anywhere;}
+.wf-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.wf-state{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:4px;color:var(--text-muted);}
+.wf-state.on{color:#3fb950;}
+.switch{position:relative;flex:none;width:46px;height:28px;border-radius:999px;border:0;padding:0;cursor:pointer;
+  background:var(--border);transition:background .15s ease;}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s ease;}
+.switch[aria-checked="true"]{background:#34c759;}
+.switch[aria-checked="true"]::after{transform:translateX(18px);}
+.switch:disabled{opacity:.5;cursor:wait;}
+.switch:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.wf-note{font-size:12px;padding:8px 10px;border-radius:8px;background:var(--accent-soft);color:var(--text);margin-bottom:12px;}
+.wf-steps{margin:8px 0 0;padding-left:18px;font-size:12px;color:var(--text-muted);line-height:1.5;}
 
 @media (prefers-reduced-motion:reduce){
   .typing span{animation:none;}
@@ -695,6 +717,9 @@ body{
       <button class="icon-btn" id="toolsBtn" aria-label="Show available tools" title="Available tools">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
       </button>
+      <button class="icon-btn" id="workflowsBtn" aria-label="Workflows" title="Workflows — scheduled automations">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </button>
       <button class="icon-btn" id="connectorBtn" aria-label="System connector" title="System connector">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="8" height="6" rx="1"/><rect x="14" y="9" width="8" height="6" rx="1"/><path d="M10 12h4"/></svg>
       </button>
@@ -772,6 +797,22 @@ body{
     <div class="sidebar-body">
       <div class="tools-last-used" id="toolsLastUsed" hidden></div>
       <div id="toolsList"><p class="tools-empty">Loading…</p></div>
+    </div>
+  </div>
+
+  <div class="sidebar" id="workflowsSidebar">
+    <div class="sidebar-head">
+      <h2>Workflows</h2>
+      <button class="icon-btn" id="workflowsCloseBtn" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="sidebar-body">
+      <div id="workflowsNote" class="wf-note" hidden></div>
+      <p class="dashboard-section-label" style="margin-top:0">Automations</p>
+      <div id="automationsList"><p class="tools-empty">Loading…</p></div>
+      <p class="dashboard-section-label">Saved workflows</p>
+      <div id="savedWorkflowsList"><p class="tools-empty">Loading…</p></div>
     </div>
   </div>
 
@@ -1063,15 +1104,147 @@ body{
   var toolsDataLoaded = false;
   var toolsDataCache = null;
 
+  // ── Workflows panel: scheduled automations + saved workflows, with an on/off switch ──
+  var wf = {
+    btn: document.getElementById('workflowsBtn'),
+    sidebar: document.getElementById('workflowsSidebar'),
+    closeBtn: document.getElementById('workflowsCloseBtn'),
+    note: document.getElementById('workflowsNote'),
+    jobs: document.getElementById('automationsList'),
+    saved: document.getElementById('savedWorkflowsList'),
+    timer: null, data: null, busy: {}
+  };
+
+  function wfNotice(msg){
+    wf.note.textContent = msg || '';
+    wf.note.hidden = !msg;
+    if (msg) setTimeout(function(){ if (wf.note.textContent === msg) wf.note.hidden = true; }, 6000);
+  }
+  function wfAgo(ts){
+    if (!ts) return "Hasn't run yet";
+    var s = Math.max(0, Date.now()/1000 - ts);
+    if (s < 90) return 'just now';
+    if (s < 3600) return Math.round(s/60) + ' min ago';
+    if (s < 86400) return Math.round(s/3600) + ' h ago';
+    return Math.round(s/86400) + ' d ago';
+  }
+  function wfJson(path, opts){
+    return apiFetch(path, opts).then(function(res){
+      return res.json().catch(function(){ return {}; }).then(function(d){ return {ok: res.ok, data: d}; });
+    });
+  }
+  function loadWorkflows(){
+    return wfJson('/api/automations').then(function(r){
+      if (!r.ok){
+        if (!wf.data) wf.jobs.innerHTML = '<p class="tools-empty">' + escapeHtml((r.data && r.data.error) || 'Could not load automations.') + '</p>';
+        return;
+      }
+      wf.data = r.data;
+      renderWorkflows();
+    }).catch(function(){
+      if (!wf.data) wf.jobs.innerHTML = '<p class="tools-empty">Could not reach the server.</p>';
+    });
+  }
+  function renderWorkflows(){
+    var jobs = (wf.data && wf.data.jobs) || [];
+    var running = false;
+    if (!jobs.length){
+      wf.jobs.innerHTML = '<p class="tools-empty">Nothing scheduled yet. Ask Jarvis: “every day at 9 am, summarize my mail”.</p>';
+    } else {
+      wf.jobs.innerHTML = jobs.map(function(j){
+        var isRun = /^running/.test(j.last_status || '');
+        if (isRun) running = true;
+        var icon = j.kind === 'native' ? '✉️' : '🕒';
+        var last = j.last_run_at ? ((j.last_status ? j.last_status + ' · ' : '') + wfAgo(j.last_run_at)) : "Hasn't run yet";
+        return '<div class="wf-card' + (j.enabled ? '' : ' off') + '" data-id="' + j.id + '">' +
+          '<div class="wf-head"><span class="wf-icon">' + icon + '</span>' +
+          '<div class="wf-main"><div class="wf-title">' + escapeHtml(j.title) + '</div>' +
+          '<div class="wf-sched">' + escapeHtml(j.schedule_human) + ' · IST</div>' +
+          '<div class="wf-state ' + (j.enabled ? 'on' : '') + '">' + (j.enabled ? 'Active' : 'Paused') + '</div></div>' +
+          '<button type="button" class="switch" role="switch" aria-label="' + (j.enabled ? 'Pause' : 'Activate') + ' ' + escapeHtml(j.title) +
+          '" aria-checked="' + (j.enabled ? 'true' : 'false') + '" data-act="toggle" data-id="' + j.id + '"' + (wf.busy['t'+j.id] ? ' disabled' : '') + '></button></div>' +
+          (j.detail ? '<div class="wf-detail">' + escapeHtml(j.detail) + '</div>' : '') +
+          '<div class="wf-last">' + escapeHtml(last) + '</div>' +
+          '<div class="wf-actions"><button type="button" class="btn-small" data-act="run" data-id="' + j.id + '"' + (wf.busy['r'+j.id] || isRun ? ' disabled' : '') + '>' + (isRun ? 'Running…' : '▶ Run now') + '</button>' +
+          '<button type="button" class="btn-small" data-act="delete" data-id="' + j.id + '" data-title="' + escapeHtml(j.title) + '">Delete</button></div></div>';
+      }).join('');
+    }
+    var saved = (wf.data && wf.data.workflows) || [];
+    wf.saved.innerHTML = !saved.length
+      ? '<p class="tools-empty">No saved workflows. Tell Jarvis “save this as a workflow” after a multi-step task.</p>'
+      : saved.map(function(w){
+          return '<div class="wf-card"><div class="wf-head"><div class="wf-main"><div class="wf-title">' + escapeHtml(w.name) + '</div>' +
+            '<div class="wf-detail" style="margin-top:2px">' + escapeHtml(w.description || (w.steps.length + ' steps')) + '</div></div></div>' +
+            '<ol class="wf-steps">' + w.steps.map(function(st){ return '<li>' + escapeHtml(st) + '</li>'; }).join('') + '</ol>' +
+            '<div class="wf-actions"><button type="button" class="btn-small" data-act="wfrun" data-name="' + escapeHtml(w.name) + '">▶ Run now</button>' +
+            '<button type="button" class="btn-small" data-act="wfdelete" data-name="' + escapeHtml(w.name) + '">Delete</button></div></div>';
+        }).join('');
+    // poll faster while something is running so the result shows up
+    scheduleWorkflowsPolling(running ? 2500 : 15000);
+  }
+  function scheduleWorkflowsPolling(ms){
+    stopWorkflowsPolling();
+    if (!wf.sidebar.classList.contains('open')) return;
+    wf.timer = setTimeout(function(){ loadWorkflows(); }, ms);
+  }
+  function stopWorkflowsPolling(){ if (wf.timer){ clearTimeout(wf.timer); wf.timer = null; } }
+
+  function wfAction(btn){
+    var act = btn.getAttribute('data-act'), id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
+    if (act === 'toggle'){
+      var job = ((wf.data && wf.data.jobs) || []).filter(function(j){ return String(j.id) === id; })[0];
+      if (!job) return;
+      var want = !job.enabled;
+      job.enabled = want; wf.busy['t'+id] = true; renderWorkflows();      // optimistic
+      wfJson('/api/automations/' + id + '/toggle', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({enabled: want})})
+        .then(function(r){
+          if (!r.ok || r.data.ok === false){ job.enabled = !want; wfNotice((r.data && (r.data.message || r.data.error)) || 'Could not change that.'); }
+        }).catch(function(){ job.enabled = !want; wfNotice('Could not reach the server.'); })
+        .finally(function(){ delete wf.busy['t'+id]; loadWorkflows(); });
+    } else if (act === 'run'){
+      wf.busy['r'+id] = true; renderWorkflows();
+      wfJson('/api/automations/' + id + '/run', {method:'POST'}).then(function(r){
+        wfNotice((r.data && (r.data.message || r.data.error)) || 'Started.');
+      }).catch(function(){ wfNotice('Could not reach the server.'); })
+        .finally(function(){ delete wf.busy['r'+id]; loadWorkflows(); });
+    } else if (act === 'delete'){
+      if (!window.confirm('Delete “' + (btn.getAttribute('data-title') || 'this automation') + '”? This cannot be undone.')) return;
+      wfJson('/api/automations/' + id, {method:'DELETE'}).then(function(r){
+        wfNotice((r.data && (r.data.message || r.data.error)) || 'Deleted.');
+      }).finally(loadWorkflows);
+    } else if (act === 'wfrun'){
+      wfJson('/api/workflows/' + encodeURIComponent(name) + '/run', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({session_id: sessionId})})
+        .then(function(r){ wfNotice((r.data && (r.data.message || r.data.error)) || 'Started.'); });
+    } else if (act === 'wfdelete'){
+      if (!window.confirm('Delete workflow “' + name + '”?')) return;
+      wfJson('/api/workflows/' + encodeURIComponent(name), {method:'DELETE'}).then(function(r){
+        wfNotice((r.data && (r.data.message || r.data.error)) || 'Deleted.');
+      }).finally(loadWorkflows);
+    }
+  }
+  wf.sidebar.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('[data-act]') : null;
+    if (btn && !btn.disabled) wfAction(btn);
+  });
+  wf.btn.addEventListener('click', function(){
+    openSidebar(wf.sidebar);
+    loadWorkflows();
+  });
+  wf.closeBtn.addEventListener('click', closeSidebars);
+
   function openSidebar(sidebarEl){
     closeDashboard();
     els.toolsSidebar.classList.toggle('open', sidebarEl === els.toolsSidebar);
     els.connectorSidebar.classList.toggle('open', sidebarEl === els.connectorSidebar);
+    wf.sidebar.classList.toggle('open', sidebarEl === wf.sidebar);
     els.sidebarOverlay.classList.add('open');
   }
   function closeSidebars(){
     els.toolsSidebar.classList.remove('open');
     els.connectorSidebar.classList.remove('open');
+    wf.sidebar.classList.remove('open');
+    stopWorkflowsPolling();
     els.sidebarOverlay.classList.remove('open');
   }
 
