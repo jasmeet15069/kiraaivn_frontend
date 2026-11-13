@@ -397,6 +397,21 @@ body{
 .btn-small:hover{border-color:var(--accent);color:var(--accent);}
 .btn-small.btn-disable{color:#d29922;border-color:rgba(210,153,34,.4);}
 .btn-small.btn-disable:hover{border-color:#d29922;color:#d29922;}
+.nw-newbtn{display:block;width:100%;margin-bottom:12px;padding:8px;}
+.nw-form{margin-bottom:14px;}
+.nw-card{border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--surface);}
+.nw-title{font-weight:700;font-size:13px;margin-bottom:10px;color:var(--text);}
+.nw-card .field{margin-bottom:9px;}
+.nw-card .field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:3px;}
+.nw-card .field input,.nw-card .field select,.nw-card .field textarea{width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font:inherit;font-size:12.5px;padding:7px 9px;}
+.nw-card .field textarea{min-height:66px;resize:vertical;line-height:1.5;}
+.nw-check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text);margin:6px 0 2px;}
+.nw-check input{width:auto;}
+.nw-status{font-size:12px;margin:6px 0;}
+.nw-status.err{color:#f85149;}
+.nw-status.ok{color:#3fb950;}
+.btn-small.nw-create{background:#2f6bff;border-color:#2f6bff;color:#fff;}
+.btn-small.nw-create:disabled{opacity:.6;cursor:default;}
 
 .detail-card{max-width:560px;max-height:82vh;padding:0;overflow:hidden;}
 .detail-head{
@@ -811,6 +826,8 @@ body{
     </div>
     <div class="sidebar-body">
       <div id="workflowsNote" class="wf-note" hidden></div>
+      <button type="button" class="btn-small nw-newbtn" id="newWorkflowBtn">+ New workflow</button>
+      <div id="newWorkflowForm" class="nw-form" hidden></div>
       <p class="dashboard-section-label" style="margin-top:0">Automations</p>
       <div id="automationsList"><p class="tools-empty">Loading…</p></div>
       <p class="dashboard-section-label">Saved workflows</p>
@@ -1246,6 +1263,105 @@ body{
     loadWorkflows();
   });
   wf.closeBtn.addEventListener('click', closeSidebars);
+
+  // ── New-workflow builder: create any automation type (prompt or a template) ──
+  var nw = { btn: document.getElementById('newWorkflowBtn'), form: document.getElementById('newWorkflowForm'),
+             templates: null, files: [], open: false };
+
+  function nwLoadTemplates(){
+    if (nw.templates) return Promise.resolve();
+    return wfJson('/api/automations/templates').then(function(r){
+      nw.templates = (r.data && r.data.templates) || [];
+      nw.files = ((r.data && r.data.files) || []).map(function(f){ return f.name; });
+    }).catch(function(){ nw.templates = []; nw.files = []; });
+  }
+  function nwTypeList(){
+    var order = ['ai_report', 'reminder_email', 'resume_email', 'job_alerts'];
+    var tmap = {}; (nw.templates || []).forEach(function(t){ tmap[t.id] = t; });
+    var list = [{ id:'prompt', title:'Custom task', summary:'Run any instruction with Jarvis tools (no email).' }];
+    order.forEach(function(id){ if (tmap[id]) list.push(tmap[id]); });
+    (nw.templates || []).forEach(function(t){ if (order.indexOf(t.id) < 0) list.push(t); });
+    return list;
+  }
+  function nwField(f){
+    var label = '<label>' + escapeHtml(f.label || f.key) + (f.required ? ' *' : '') + '</label>';
+    var def = f.default;
+    if (f.type === 'textarea')
+      return '<div class="field">' + label + '<textarea data-key="' + f.key + '" data-ft="' + f.type + '">' + escapeHtml(def || '') + '</textarea></div>';
+    if (f.type === 'select'){
+      var opts = (f.options || []).map(function(o){ var v = (o.value !== undefined ? o.value : o), l = (o.label !== undefined ? o.label : o);
+        return '<option value="' + escapeHtml(v) + '"' + (v === def ? ' selected' : '') + '>' + escapeHtml(l) + '</option>'; }).join('');
+      return '<div class="field">' + label + '<select data-key="' + f.key + '" data-ft="' + f.type + '">' + opts + '</select></div>';
+    }
+    if (f.type === 'file'){
+      var fo = ['<option value="">(none)</option>'].concat(nw.files.map(function(n){
+        return '<option value="' + escapeHtml(n) + '"' + (n === def ? ' selected' : '') + '>' + escapeHtml(n) + '</option>'; })).join('');
+      return '<div class="field">' + label + '<select data-key="' + f.key + '" data-ft="' + f.type + '">' + fo + '</select></div>';
+    }
+    var val = Array.isArray(def) ? def.join(', ') : (def != null ? def : '');
+    var ph = (f.type === 'tags' || f.type === 'roles') ? 'comma, separated' : (f.type === 'emails' ? 'name@example.com' : '');
+    return '<div class="field">' + label + '<input type="' + (f.type === 'number' ? 'number' : 'text') + '" data-key="' + f.key + '" data-ft="' + f.type + '" value="' + escapeHtml(String(val)) + '" placeholder="' + ph + '"></div>';
+  }
+  function nwType(){ var s = document.getElementById('nwType'); return s ? s.value : 'prompt'; }
+  function nwRenderFields(){
+    var box = document.getElementById('nwFields');
+    if (nwType() === 'prompt'){
+      box.innerHTML = '<div class="field"><label>What should Jarvis do? *</label><textarea data-key="prompt" data-ft="textarea" placeholder="e.g. Summarize my unread mail and email me the digest"></textarea></div>';
+      return;
+    }
+    var t = (nw.templates || []).filter(function(x){ return x.id === nwType(); })[0];
+    box.innerHTML = ((t && t.fields) || []).map(nwField).join('');
+  }
+  function nwRenderForm(){
+    var types = nwTypeList();
+    nw.form.innerHTML = '<div class="nw-card"><div class="nw-title">New workflow</div>' +
+      '<div class="field"><label>Type</label><select id="nwType">' +
+        types.map(function(t){ return '<option value="' + t.id + '">' + escapeHtml(t.title || t.id) + ' — ' + escapeHtml(t.summary || '') + '</option>'; }).join('') +
+      '</select></div>' +
+      '<div class="field"><label>Name</label><input type="text" id="nwName" placeholder="My workflow"></div>' +
+      '<div class="field"><label>Schedule</label><input type="text" id="nwSchedule" placeholder="every day at 9am · every hour · mon 8am · manual"></div>' +
+      '<div id="nwFields"></div>' +
+      '<label class="nw-check"><input type="checkbox" id="nwEnabled" checked> Enabled</label>' +
+      '<div class="nw-status" id="nwStatus" hidden></div>' +
+      '<div class="wf-actions"><button type="button" class="btn-small nw-create" id="nwCreate">Create</button>' +
+      '<button type="button" class="btn-small" id="nwCancel">Cancel</button></div></div>';
+    document.getElementById('nwType').addEventListener('change', nwRenderFields);
+    document.getElementById('nwCancel').addEventListener('click', nwClose);
+    document.getElementById('nwCreate').addEventListener('click', nwCreate);
+    nwRenderFields();
+  }
+  function nwStatus(msg, kind){ var s = document.getElementById('nwStatus'); if (!s) return; s.hidden = !msg; s.textContent = msg || ''; s.className = 'nw-status ' + (kind || ''); }
+  function nwCollect(){
+    var cfg = {}, prompt = '';
+    var nodes = nw.form.querySelectorAll('#nwFields [data-key]');
+    for (var i = 0; i < nodes.length; i++){
+      var el = nodes[i], key = el.getAttribute('data-key'), ft = el.getAttribute('data-ft'), v = el.value;
+      if (key === 'prompt' && nwType() === 'prompt'){ prompt = v; continue; }
+      if (ft === 'number') cfg[key] = (v === '' ? undefined : Number(v));
+      else if (ft === 'tags' || ft === 'roles') cfg[key] = v.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+      else cfg[key] = v;
+    }
+    return { cfg: cfg, prompt: prompt };
+  }
+  function nwCreate(){
+    var type = nwType();
+    var name = document.getElementById('nwName').value.trim();
+    var schedule = document.getElementById('nwSchedule').value.trim() || 'manual';
+    var enabled = document.getElementById('nwEnabled').checked;
+    var c = nwCollect();
+    if (type === 'prompt' && !c.prompt.trim()){ nwStatus('Enter an instruction.', 'err'); return; }
+    var payload = { template: type, name: name, schedule: schedule, enabled: enabled };
+    if (type === 'prompt') payload.prompt = c.prompt; else payload.config = c.cfg;
+    var btn = document.getElementById('nwCreate'); btn.disabled = true; nwStatus('Creating…', '');
+    wfJson('/api/automations', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      .then(function(r){
+        if (r.ok && r.data && r.data.ok !== false){ nwClose(); wfNotice((r.data && r.data.message) || 'Created.'); loadWorkflows(); }
+        else { nwStatus((r.data && (r.data.message || r.data.error)) || 'Could not create that.', 'err'); btn.disabled = false; }
+      }).catch(function(e){ nwStatus('Failed: ' + e.message, 'err'); btn.disabled = false; });
+  }
+  function nwOpen(){ nw.open = true; nw.form.hidden = false; nw.btn.textContent = '× Cancel'; nwLoadTemplates().then(nwRenderForm); }
+  function nwClose(){ nw.open = false; nw.form.hidden = true; nw.form.innerHTML = ''; nw.btn.textContent = '+ New workflow'; }
+  nw.btn.addEventListener('click', function(){ nw.open ? nwClose() : nwOpen(); });
 
   function openSidebar(sidebarEl){
     closeDashboard();
