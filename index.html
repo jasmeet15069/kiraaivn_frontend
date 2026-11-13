@@ -659,7 +659,28 @@ body{
 @media (max-width:480px){
   body{padding:0;}
   .app{max-width:100%;height:100vh;border-radius:0;border:none;}
-  .model-select{max-width:120px;}
+}
+
+/* Mobile / small screens: the header's model picker + 7 icon buttons can't fit
+   one row, so wrap the toolbar onto its own full-width row and keep every
+   control reachable and touch-sized. */
+@media (max-width:640px){
+  body{padding:0;}
+  .app{max-width:100%;height:100vh;height:100dvh;border-radius:0;border:none;}
+  .header{flex-wrap:wrap;gap:10px;padding:12px 14px;}
+  .title-block{flex:1 1 auto;}
+  .header-actions{order:3;width:100%;margin-left:0;flex-wrap:wrap;gap:8px;}
+  .model-select{max-width:none;flex:1 1 150px;min-width:130px;}
+  .icon-btn{width:40px;height:40px;}
+  .icon-btn svg{width:17px;height:17px;}
+  .messages{padding:14px;gap:12px;}
+  .row{max-width:94%;}
+  .row.user{max-width:90%;}
+  .composer{padding:12px 14px;}
+  .attachments-bar{padding-left:14px;padding-right:14px;}
+  /* Panels and the VPS monitor take almost the full width on a phone. */
+  .sidebar{width:100%;max-width:92%;}
+  .dashboard-head{flex-wrap:wrap;gap:8px;}
 }
 
 /* Desktop: full-viewport two-pane — chat anchored LEFT, panels dock into the
