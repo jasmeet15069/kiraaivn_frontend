@@ -661,6 +661,27 @@ body{
   .app{max-width:100%;height:100vh;border-radius:0;border:none;}
   .model-select{max-width:120px;}
 }
+
+/* Desktop: full-viewport two-pane — chat anchored LEFT, panels dock into the
+   whole blank RIGHT area (full height) instead of a narrow slide-over. */
+@media (min-width:1024px){
+  body{padding:0;justify-content:flex-start;}
+  .app{max-width:none;width:100vw;height:100vh;border:none;border-radius:0;box-shadow:none;}
+  .app > .header,
+  .app > .messages,
+  .app > .attachments-bar,
+  .app > .composer{
+    align-self:flex-start;
+    width:min(860px,52vw);
+  }
+  .sidebar{
+    width:calc(100vw - min(860px,52vw));
+    max-width:none;
+    box-shadow:none;
+  }
+  /* It's a docked pane on desktop, not a modal — no dimming, chat stays usable. */
+  .sidebar-overlay{display:none;}
+}
 </style>
 </head>
 <body>
