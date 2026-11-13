@@ -1174,13 +1174,23 @@ body{
       }).join('');
     }
     var saved = (wf.data && wf.data.workflows) || [];
+    // Map a saved workflow to its scheduled automation (matched by name), so the
+    // saved card can show an Enable/Disable button that toggles that schedule.
+    var schedByName = {};
+    jobs.forEach(function(j){ schedByName[j.title] = j; });
     wf.saved.innerHTML = !saved.length
       ? '<p class="tools-empty">No saved workflows. Tell Jarvis “save this as a workflow” after a multi-step task.</p>'
       : saved.map(function(w){
+          var sched = schedByName[w.name];
+          var toggleBtn = sched
+            ? '<button type="button" class="btn-small' + (sched.enabled ? ' btn-disable' : '') + '" data-act="toggle" data-id="' + sched.id + '"' + (wf.busy['t'+sched.id] ? ' disabled' : '') + '>' + (sched.enabled ? '⏸ Disable' : '✔ Enable') + '</button>'
+            : '<button type="button" class="btn-small" disabled title="Not scheduled — no automation to disable">Disable</button>';
+          var schedNote = sched ? '<div class="wf-state ' + (sched.enabled ? 'on' : '') + '" style="margin-top:2px">' + (sched.enabled ? 'Scheduled · Active' : 'Scheduled · Paused') + '</div>' : '';
           return '<div class="wf-card"><div class="wf-head"><div class="wf-main"><div class="wf-title">' + escapeHtml(w.name) + '</div>' +
-            '<div class="wf-detail" style="margin-top:2px">' + escapeHtml(w.description || (w.steps.length + ' steps')) + '</div></div></div>' +
+            '<div class="wf-detail" style="margin-top:2px">' + escapeHtml(w.description || (w.steps.length + ' steps')) + '</div>' + schedNote + '</div></div>' +
             '<ol class="wf-steps">' + w.steps.map(function(st){ return '<li>' + escapeHtml(st) + '</li>'; }).join('') + '</ol>' +
-            '<div class="wf-actions"><button type="button" class="btn-small" data-act="wfrun" data-name="' + escapeHtml(w.name) + '">▶ Run now</button>' +
+            '<div class="wf-actions">' + toggleBtn +
+            '<button type="button" class="btn-small" data-act="wfrun" data-name="' + escapeHtml(w.name) + '">▶ Run now</button>' +
             '<button type="button" class="btn-small" data-act="wfdelete" data-name="' + escapeHtml(w.name) + '">Delete</button></div></div>';
         }).join('');
     // poll faster while something is running so the result shows up
