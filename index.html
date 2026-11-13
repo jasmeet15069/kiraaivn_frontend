@@ -199,6 +199,10 @@ body{
 .typing span:nth-child(2){animation-delay:0.15s;}
 .typing span:nth-child(3){animation-delay:0.3s;}
 @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:0.5;}30%{transform:translateY(-4px);opacity:1;}}
+.typing-wrap{display:flex;align-items:center;gap:9px;padding:2px 2px;}
+.typing-status{font-size:12.5px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;}
+.tool-from{font-size:12px;color:var(--text);margin-top:8px;}
+.tool-from strong{font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;}
 
 .attachments-bar{
   display:flex;
@@ -1164,6 +1168,7 @@ body{
 
   var toolsDataLoaded = false;
   var toolsDataCache = null;
+  var emailFrom = '';
 
   // ── Workflows panel: scheduled automations + saved workflows, with an on/off switch ──
   var wf = {
@@ -1922,6 +1927,10 @@ body{
 
   function loadToolsData(){
     toolsDataLoaded = true;
+    // Grab the sender address too so the Email tool can show who it sends as.
+    apiFetch('/api/email-from').then(function(r){ return r.json(); })
+      .then(function(d){ emailFrom = (d && d.from) || ''; if (toolsDataCache) renderTools(toolsDataCache); })
+      .catch(function(){});
     apiFetch('/api/tools').then(function(res){ return res.json(); }).then(function(data){
       toolsDataCache = data;
       renderTools(data);
@@ -1948,6 +1957,9 @@ body{
       ? '<div class="tool-params"><span class="tool-params-label">Parameters</span><code>' +
           escapeHtml(t.params) + '</code></div>'
       : '';
+    var fromLine = emailFrom
+      ? '<div class="tool-from">Sends from: <strong>' + escapeHtml(emailFrom) + '</strong></div>'
+      : '';
     els.toolsList.innerHTML =
       '<div class="tool-box" tabindex="0" role="button" aria-expanded="false">' +
         '<div class="tool-box-head">' +
@@ -1956,7 +1968,7 @@ body{
           '<span class="tool-caret" aria-hidden="true">▸</span>' +
         '</div>' +
         '<div class="tool-detail" hidden>' +
-          '<div class="tool-desc">' + escapeHtml(t.description) + '</div>' + params +
+          '<div class="tool-desc">' + escapeHtml(t.description) + '</div>' + fromLine + params +
         '</div>' +
       '</div>';
     bindToolsList();
@@ -2140,6 +2152,9 @@ body{
     return { row: row, bubble: bubble, meta: meta };
   }
 
+  // Status phases shown while Jarvis is working (it's a single request, so these
+  // progress on a timer to reflect the typical think → tool-use → reply flow).
+  var STATUS_PHASES = ['Listening…', 'Thinking…', 'Analyzing your request…', 'Using tools (MCP)…', 'Working…', 'Composing a reply…'];
   function addTyping(){
     if (els.emptyState) { els.emptyState.remove(); els.emptyState = null; }
     var row = document.createElement('div');
@@ -2148,13 +2163,24 @@ body{
     avatar.className = 'avatar';
     avatar.textContent = '◈';
     var bubble = document.createElement('div');
-    bubble.className = 'bubble typing';
-    bubble.innerHTML = '<span></span><span></span><span></span>';
+    bubble.className = 'bubble typing-wrap';
+    bubble.innerHTML = '<span class="typing"><span></span><span></span><span></span></span><span class="typing-status"></span>';
     row.appendChild(avatar);
     row.appendChild(bubble);
     els.messages.appendChild(row);
     els.messages.scrollTop = els.messages.scrollHeight;
+    var label = bubble.querySelector('.typing-status');
+    var i = 0;
+    label.textContent = STATUS_PHASES[0];
+    row._statusTimer = setInterval(function(){
+      i = Math.min(i + 1, STATUS_PHASES.length - 1);   // advance, then hold on the last phase
+      label.textContent = STATUS_PHASES[i];
+    }, 1600);
     return row;
+  }
+  function stopTyping(row){
+    if (row && row._statusTimer){ clearInterval(row._statusTimer); row._statusTimer = null; }
+    if (row) row.remove();
   }
 
   function setBusy(busy){
@@ -2194,7 +2220,7 @@ body{
         return data;
       });
     }).then(function(data){
-      typingRow.remove();
+      stopTyping(typingRow);
       var reply = data.reply || '(empty response)';
       var meta = labelFor(model);
       if (Array.isArray(data.used_tools) && data.used_tools.length){
@@ -2205,7 +2231,7 @@ body{
       addRow('assistant', reply, {metaText: meta});
       history.push({role:'assistant', content:reply});
     }).catch(function(err){
-      typingRow.remove();
+      stopTyping(typingRow);
       addRow('assistant', 'Request failed: ' + err.message, {error:true});
       history.pop();
     }).finally(function(){
