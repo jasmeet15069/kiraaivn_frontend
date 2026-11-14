@@ -654,6 +654,50 @@ body{
 .switch:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 .wf-note{font-size:12px;padding:8px 10px;border-radius:8px;background:var(--accent-soft);color:var(--text);margin-bottom:12px;}
 .wf-steps{margin:8px 0 0;padding-left:18px;font-size:12px;color:var(--text-muted);line-height:1.5;}
+.wx-chat{border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:12px;background:var(--surface-2);}
+.wx-chat-title{font-size:12px;font-weight:700;margin-bottom:6px;}
+.wx-chat-log{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
+.wx-hint{font-size:11.5px;color:var(--text-muted);line-height:1.5;}
+.wx-bubble{font-size:12.5px;line-height:1.45;padding:7px 10px;border-radius:10px;max-width:92%;white-space:pre-wrap;overflow-wrap:anywhere;}
+.wx-bubble.me{align-self:flex-end;background:var(--user-bubble);color:var(--user-bubble-text);}
+.wx-bubble.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--border);color:var(--text);}
+.wx-bubble.pending{opacity:.7;font-style:italic;}
+.wx-chat-form{display:flex;gap:8px;align-items:flex-end;}
+.wx-chat-form textarea{flex:1;resize:vertical;min-height:38px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 9px;font:inherit;font-size:12.5px;}
+.wx-chat-form .btn-primary{padding:8px 12px;}
+.wx-extra:empty{display:none;}
+.wx-extra{margin-top:10px;}
+.wx-runs{display:flex;flex-direction:column;gap:6px;}
+.wx-run{font-size:11.5px;border-left:3px solid var(--border);padding:2px 8px;display:flex;flex-direction:column;}
+.wx-run.good{border-color:#3fb950;}
+.wx-run.bad{border-color:var(--danger);}
+.wx-run small{color:var(--text-muted);overflow-wrap:anywhere;}
+.wx-prev{font-size:12px;border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface-2);overflow-wrap:anywhere;}
+.wx-prev table{width:100%;border-collapse:collapse;margin-top:6px;}
+.wx-prev td{padding:5px 4px;border-top:1px solid var(--border);vertical-align:top;}
+.wx-prev td:first-child{color:var(--text-muted);width:18px;}
+.wx-prev td:nth-child(2){font-weight:600;white-space:nowrap;}
+.wx-prev a{color:var(--accent);}
+.wx-prev pre{white-space:pre-wrap;font-family:inherit;margin:8px 0 0;}
+.wx-file{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--border);}
+.wx-file small{color:var(--text-muted);}
+.wx-upload{display:inline-block;margin-top:8px;cursor:pointer;}
+.wx-modal{max-width:600px;max-height:90vh;overflow-y:auto;}
+.wx-modal textarea,.wx-modal select,.wx-modal input[type=text],.wx-modal input[type=number],.wx-modal input[type=time]{
+  background:var(--surface-2);border:1px solid var(--border);color:var(--text);font-size:13px;padding:8px 10px;border-radius:8px;font-family:inherit;width:100%;box-sizing:border-box;}
+.wx-modal textarea{resize:vertical;line-height:1.5;}
+.wx-modal small{font-weight:400;color:var(--text-muted);}
+.wx-modal .req{color:var(--danger);}
+.wx-label{font-size:11.5px;font-weight:600;color:var(--text-muted);display:flex;flex-direction:column;gap:6px;}
+.wx-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;}
+.wx-row > label{flex:1 1 120px;}
+.wx-row select{flex:1 1 auto;width:auto;}
+.wx-checks{display:flex;flex-wrap:wrap;gap:6px 14px;}
+.wx-check{flex-direction:row !important;align-items:center;gap:6px !important;font-weight:500 !important;color:var(--text) !important;font-size:12.5px !important;}
+.wx-check input{width:auto !important;}
+.wx-fs{border:1px solid var(--border);border-radius:10px;padding:10px;margin:0;display:flex;flex-direction:column;gap:8px;}
+.wx-fs legend{font-size:11.5px;font-weight:700;color:var(--text-muted);padding:0 4px;}
+
 
 @media (prefers-reduced-motion:reduce){
   .typing span{animation:none;}
@@ -766,6 +810,16 @@ body{
   </div>
 </div>
 
+<div class="modal-overlay" id="wxEditorOverlay">
+  <div class="modal-card wx-modal" role="dialog" aria-modal="true" aria-labelledby="wxEditorTitle">
+    <div class="detail-head"><h2 id="wxEditorTitle">Edit workflow</h2>
+      <button type="button" class="icon-btn" data-wx="close" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button></div>
+    <div id="wxEditorBody"></div>
+  </div>
+</div>
+
 <div class="app">
   <div class="header">
     <div class="mark" aria-hidden="true">
@@ -872,10 +926,20 @@ body{
     </div>
     <div class="sidebar-body">
       <div id="workflowsNote" class="wf-note" hidden></div>
+      <div class="wx-chat">
+        <div class="wx-chat-title">✨ Ask the workflow assistant</div>
+        <div class="wx-chat-log" id="wxChatLog"></div>
+        <form class="wx-chat-form" id="wxChatForm">
+          <textarea id="wxChatInput" rows="2" placeholder="Create, change, pause or delete workflows in plain words…"></textarea>
+          <button type="submit" class="btn-primary" id="wxChatSend">Send</button>
+        </form>
+      </div>
       <button type="button" class="btn-small nw-newbtn" id="newWorkflowBtn">+ New workflow</button>
       <div id="newWorkflowForm" class="nw-form" hidden></div>
       <p class="dashboard-section-label" style="margin-top:0">Automations</p>
       <div id="automationsList"><p class="tools-empty">Loading…</p></div>
+      <p class="dashboard-section-label">Files (attach to emails)</p>
+      <div id="wxFilesList"><p class="tools-empty">Loading…</p></div>
       <p class="dashboard-section-label">Saved workflows</p>
       <div id="savedWorkflowsList"><p class="tools-empty">Loading…</p></div>
     </div>
@@ -1409,6 +1473,271 @@ body{
   function nwOpen(){ nw.open = true; nw.form.hidden = false; nw.btn.textContent = '× Cancel'; nwLoadTemplates().then(nwRenderForm); }
   function nwClose(){ nw.open = false; nw.form.hidden = true; nw.form.innerHTML = ''; nw.btn.textContent = '+ New workflow'; }
   nw.btn.addEventListener('click', function(){ nw.open ? nwClose() : nwOpen(); });
+
+  // ── Workflow extras: AI assistant chat, edit (full schedule + fields), duplicate, preview, history, files ──
+  // Added on top of the panel above without changing it: after every render we add buttons to each card.
+  var wx = { chatLog: document.getElementById('wxChatLog'), chatForm: document.getElementById('wxChatForm'),
+             chatInput: document.getElementById('wxChatInput'), chatSend: document.getElementById('wxChatSend'),
+             files: document.getElementById('wxFilesList'), modal: document.getElementById('wxEditorOverlay'),
+             body: document.getElementById('wxEditorBody'), title: document.getElementById('wxEditorTitle'),
+             templates: null, fileList: [], chat: [], extra: {}, editing: null };
+  try { wx.chat = JSON.parse(sessionStorage.getItem('wx_chat') || '[]') || []; } catch(e){ wx.chat = []; }
+  function wxAttr(s){ return escapeHtml(s == null ? '' : String(s)).replace(/"/g, '&quot;'); }
+  function wxSend(path, method, body){
+    return wfJson(path, {method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
+  }
+  function wxMsg(r, fb){ return (r && r.data && (r.data.message || r.data.error)) || fb; }
+  function wxOk(r){ return r.ok && !(r.data && r.data.ok === false); }
+  function wxJob(id){ return ((wf.data && wf.data.jobs) || []).filter(function(j){ return String(j.id) === String(id); })[0]; }
+  function wxLoadTemplates(){
+    if (wx.templates) return Promise.resolve(wx.templates);
+    return wfJson('/api/automations/templates').then(function(r){
+      wx.templates = (r.data && r.data.templates) || []; wx.fileList = (r.data && r.data.files) || []; return wx.templates;
+    });
+  }
+  function wxTpl(id){ return (wx.templates || []).filter(function(t){ return t.id === id; })[0]; }
+
+  // add Edit / Duplicate / Preview / History to every automation card after each render
+  var _wxBaseRender = renderWorkflows;
+  renderWorkflows = function(){
+    _wxBaseRender();
+    Array.prototype.forEach.call(wf.jobs.querySelectorAll('.wf-card[data-id]'), function(card){
+      var id = card.getAttribute('data-id'), j = wxJob(id), acts = card.querySelector('.wf-actions');
+      if (!j || !acts || card.querySelector('[data-wx]')) return;
+      var ic = card.querySelector('.wf-icon'); if (ic && j.emoji) ic.textContent = j.emoji;
+      var html = '<button type="button" class="btn-small" data-wx="edit" data-id="' + id + '">✎ Edit</button>' +
+                 '<button type="button" class="btn-small" data-wx="duplicate" data-id="' + id + '">Duplicate</button>' +
+                 (j.template ? '<button type="button" class="btn-small" data-wx="preview" data-id="' + id + '">Preview</button>' : '') +
+                 '<button type="button" class="btn-small" data-wx="history" data-id="' + id + '">History</button>';
+      acts.insertAdjacentHTML('beforeend', html);
+      card.insertAdjacentHTML('beforeend', '<div class="wx-extra" id="wxExtra' + id + '">' + (wx.extra[id] || '') + '</div>');
+    });
+    wxRenderFiles();
+  };
+
+  function wxShowExtra(id, html){ if (html) wx.extra[id] = html; else delete wx.extra[id]; var el = document.getElementById('wxExtra' + id); if (el) el.innerHTML = html || ''; }
+  function wxAgo(ts){ return wfAgo(ts); }
+  function wxPreviewHtml(p){
+    if (!p) return '';
+    if (p.kind === 'jobs'){
+      if (!p.items.length) return '<div class="wx-prev"><b>No new jobs right now</b> — checked ' + p.fetched + ' listings, ' + p.matched + ' matched, all already sent. It sends when new ones appear.</div>';
+      return '<div class="wx-prev"><b>Next email: ' + p.items.length + ' jobs</b> <small>(' + p.matched + ' matched of ' + p.fetched + ' listings, ' + p.seconds + 's)</small><table>' +
+        p.items.map(function(i, n){ return '<tr><td>' + (n + 1) + '</td><td>' + escapeHtml(i.role) + '</td><td><a href="' + wxAttr(i.url) + '" target="_blank" rel="noopener">' + escapeHtml(i.title) + '</a><br><small>' + escapeHtml(i.company) + ' · ' + escapeHtml(i.location || 'Remote') + ' · ' + escapeHtml(i.posted) + '</small></td></tr>'; }).join('') + '</table></div>';
+    }
+    return '<div class="wx-prev"><b>To:</b> ' + escapeHtml(p.to) + '<br><b>Subject:</b> ' + escapeHtml(p.subject) + (p.attachment ? '<br><b>Attachment:</b> 📎 ' + escapeHtml(p.attachment) : '') + '<pre>' + escapeHtml(p.body) + '</pre></div>';
+  }
+
+  // ── files ──
+  function wxFmtSize(n){ return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function wxRenderFiles(){
+    if (!wx.files) return;
+    wx.files.innerHTML = (wx.fileList.length ? wx.fileList.map(function(f){
+      return '<div class="wx-file"><span>📎 ' + escapeHtml(f.name) + ' <small>' + wxFmtSize(f.size) + '</small></span>' +
+        '<button type="button" class="btn-small" data-wx="fdelete" data-name="' + wxAttr(f.name) + '">Delete</button></div>';
+    }).join('') : '<p class="tools-empty">No files yet. Upload your resume to attach it to emails.</p>') +
+      '<label class="btn-small wx-upload">⬆ Upload file<input type="file" data-wx-upload="1" accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg,.csv,.xlsx" hidden></label>';
+  }
+  function wxLoadFiles(){ return wfJson('/api/automations/files').then(function(r){ wx.fileList = (r.data && r.data.files) || []; if (typeof nw !== 'undefined') nw.files = wx.fileList.map(function(f){ return f.name; }); wxRenderFiles(); }); }
+  function wxUpload(input, after){
+    var f = input.files && input.files[0]; if (!f) return;
+    var fd = new FormData(); fd.append('file', f, f.name);
+    wfNotice('Uploading ' + f.name + '…');
+    apiFetch('/api/automations/files', {method: 'POST', body: fd}).then(function(res){ return res.json(); }).then(function(d){
+      if (d.ok === false){ wfNotice(d.error || 'Upload failed.'); return; }
+      wx.fileList = d.files || wx.fileList;
+      if (typeof nw !== 'undefined') nw.files = wx.fileList.map(function(x){ return x.name; });
+      wfNotice(d.message || 'Uploaded.'); wxRenderFiles();
+      if (after) after(d.name);
+    }).catch(function(){ wfNotice('Upload failed.'); });
+  }
+
+  // ── assistant chat ──
+  function wxRenderChat(){
+    if (!wx.chatLog) return;
+    if (!wx.chat.length){
+      wx.chatLog.innerHTML = '<div class="wx-hint">Try: “send job alerts every 2 hours from 9 am to 9 pm”, “add Snowflake to my job alert skills”, ' +
+        '“create a reminder every Friday 6 pm to update my timesheet”, “email my resume to hr@company.com”, “pause the resume email”.</div>';
+      return;
+    }
+    wx.chatLog.innerHTML = wx.chat.slice(-10).map(function(m){
+      return '<div class="wx-bubble ' + (m.role === 'user' ? 'me' : 'ai') + '">' + escapeHtml(m.content) + '</div>';
+    }).join('');
+    wx.chatLog.scrollTop = wx.chatLog.scrollHeight;
+  }
+  if (wx.chatForm){
+    wx.chatForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var text = wx.chatInput.value.trim(); if (!text) return;
+      var history = wx.chat.slice(-8);
+      wx.chat.push({role: 'user', content: text}); wx.chatInput.value = ''; wx.chatSend.disabled = true;
+      wxRenderChat();
+      wx.chatLog.insertAdjacentHTML('beforeend', '<div class="wx-bubble ai pending">Working on it…</div>');
+      wx.chatLog.scrollTop = wx.chatLog.scrollHeight;
+      wxSend('/api/automations/assistant', 'POST', {message: text, history: history, session_id: sessionId}).then(function(r){
+        wx.chat.push({role: 'assistant', content: wxOk(r) ? (r.data.reply || 'Done.') : wxMsg(r, 'Something went wrong.')});
+        try { sessionStorage.setItem('wx_chat', JSON.stringify(wx.chat.slice(-12))); } catch(e2){}
+        wxRenderChat(); loadWorkflows();
+      }).catch(function(){ wx.chat.push({role: 'assistant', content: 'Could not reach the server.'}); wxRenderChat(); })
+        .finally(function(){ wx.chatSend.disabled = false; wx.chatInput.focus(); });
+    });
+    wx.chatInput.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); wx.chatForm.requestSubmit ? wx.chatForm.requestSubmit() : wx.chatForm.dispatchEvent(new Event('submit', {cancelable: true})); }
+    });
+  }
+
+  // ── editor (edit any workflow: name, schedule, every template field) ──
+  var WX_SCHED = [['hourly', 'Every hour in a time window'], ['daily', 'Every day'], ['weekdays', 'Monday–Friday'], ['weekly', 'Once a week'],
+                  ['interval', 'Every N minutes'], ['manual', 'Only when I press Run now'], ['cron', 'Custom (cron)']];
+  function wxHours(sel){
+    var o = '';
+    for (var h = 0; h < 24; h++){
+      var lab = h === 0 ? '12 am (midnight)' : (h < 12 ? h + ' am' : (h === 12 ? '12 pm' : (h - 12) + ' pm'));
+      o += '<option value="' + h + '"' + (h === sel ? ' selected' : '') + '>' + lab + '</option>';
+    }
+    return o;
+  }
+  function wxSchedHtml(spec){
+    spec = spec || {type: 'manual'};
+    var t = spec.type || 'manual', day = spec.day || 'mon', time = spec.time || '09:00';
+    var days = [['mon','Monday'],['tue','Tuesday'],['wed','Wednesday'],['thu','Thursday'],['fri','Friday'],['sat','Saturday'],['sun','Sunday']];
+    return '<fieldset class="wx-fs"><legend>Schedule (India time)</legend>' +
+      '<label>Runs<select id="wxSchedType">' + WX_SCHED.map(function(s){ return '<option value="' + s[0] + '"' + (s[0] === t ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('') + '</select></label>' +
+      '<div class="wx-part" data-for="hourly"><div class="wx-row"><label>From<select id="wxFrom">' + wxHours(spec.from != null ? +spec.from : 10) + '</select></label>' +
+        '<label>To<select id="wxTo">' + wxHours(spec.to != null ? +spec.to : 0) + '</select></label>' +
+        '<label>Every<select id="wxEvery">' + [1,2,3,4,6].map(function(n){ return '<option value="' + n + '"' + ((+spec.every || 1) === n ? ' selected' : '') + '>' + n + ' h</option>'; }).join('') + '</select></label></div></div>' +
+      '<div class="wx-part" data-for="daily weekdays weekly"><div class="wx-row">' +
+        '<label class="wx-day">Day<select id="wxDay">' + days.map(function(d){ return '<option value="' + d[0] + '"' + (d[0] === day ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></label>' +
+        '<label>Time<input type="time" id="wxTime" value="' + wxAttr(time) + '"></label></div></div>' +
+      '<div class="wx-part" data-for="interval"><label>Every (minutes)<input type="number" id="wxMinutes" min="5" value="' + (spec.minutes || 60) + '"></label></div>' +
+      '<div class="wx-part" data-for="cron"><label>Cron expression<input type="text" id="wxCron" value="' + wxAttr(spec.expr || '0 9 * * 1-5') + '"></label></div></fieldset>';
+  }
+  function wxSyncSched(){
+    var t = document.getElementById('wxSchedType').value;
+    Array.prototype.forEach.call(wx.body.querySelectorAll('.wx-part'), function(el){ el.hidden = el.getAttribute('data-for').split(' ').indexOf(t) < 0; });
+    var d = wx.body.querySelector('.wx-day'); if (d) d.hidden = t !== 'weekly';
+  }
+  function wxReadSched(){
+    var t = document.getElementById('wxSchedType').value, g = function(i){ return document.getElementById(i).value; };
+    if (t === 'hourly') return {type: t, from: +g('wxFrom'), to: +g('wxTo'), every: +g('wxEvery')};
+    if (t === 'daily' || t === 'weekdays') return {type: t, time: g('wxTime') || '09:00'};
+    if (t === 'weekly') return {type: t, day: g('wxDay'), time: g('wxTime') || '09:00'};
+    if (t === 'interval') return {type: t, minutes: +g('wxMinutes') || 60};
+    if (t === 'cron') return {type: t, expr: g('wxCron').trim()};
+    return {type: 'manual'};
+  }
+  function wxFileOpts(sel){
+    return '<option value="">— none —</option>' + wx.fileList.map(function(f){ return '<option value="' + wxAttr(f.name) + '"' + (f.name === sel ? ' selected' : '') + '>' + escapeHtml(f.name) + '</option>'; }).join('');
+  }
+  function wxField(f, v){
+    var id = 'wxF_' + f.key, req = f.required ? ' <span class="req">*</span>' : '', help = f.help ? '<small>' + escapeHtml(f.help) + '</small>' : '';
+    if (v === undefined || v === null) v = f.default;
+    if (f.type === 'textarea') return '<label>' + escapeHtml(f.label) + req + '<textarea id="' + id + '" rows="6">' + escapeHtml(v || '') + '</textarea>' + help + '</label>';
+    if (f.type === 'number') return '<label>' + escapeHtml(f.label) + req + '<input type="number" id="' + id + '" value="' + wxAttr(v) + '">' + help + '</label>';
+    if (f.type === 'select') return '<label>' + escapeHtml(f.label) + req + '<select id="' + id + '">' + f.options.map(function(o){ return '<option value="' + wxAttr(o.value) + '"' + (o.value === v ? ' selected' : '') + '>' + escapeHtml(o.label) + '</option>'; }).join('') + '</select>' + help + '</label>';
+    if (f.type === 'tags') return '<label>' + escapeHtml(f.label) + req + '<input type="text" id="' + id + '" value="' + wxAttr((v || []).join(', ')) + '" placeholder="comma, separated">' + help + '</label>';
+    if (f.type === 'file') return '<label>' + escapeHtml(f.label) + req + '<div class="wx-row"><select id="' + id + '">' + wxFileOpts(v) + '</select>' +
+      '<span class="btn-small wx-upload">⬆ Upload<input type="file" data-wx-upload-for="' + id + '" accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg,.csv,.xlsx" hidden></span></div>' + help + '</label>';
+    if (f.type === 'roles'){
+      var cur = v || [], opts = f.options || [], custom = cur.filter(function(r){ return opts.indexOf(r) < 0; });
+      return '<div class="wx-label">' + escapeHtml(f.label) + req + '<div class="wx-checks">' + opts.map(function(o){
+        return '<label class="wx-check"><input type="checkbox" class="wxRole" value="' + wxAttr(o) + '"' + (cur.indexOf(o) >= 0 ? ' checked' : '') + '> ' + escapeHtml(o) + '</label>';
+      }).join('') + '</div><input type="text" id="wxF_roles_custom" value="' + wxAttr(custom.join(', ')) + '" placeholder="Other roles, e.g. Product Manager">' + help + '</div>';
+    }
+    return '<label>' + escapeHtml(f.label) + req + '<input type="text" id="' + id + '" value="' + wxAttr(v || '') + '" placeholder="' + wxAttr(f.placeholder || (f.type === 'emails' ? 'name@example.com, other@example.com' : '')) + '">' + help + '</label>';
+  }
+  function wxReadFields(tpl){
+    var cfg = {};
+    (tpl.fields || []).forEach(function(f){
+      if (f.type === 'roles'){
+        var picked = Array.prototype.filter.call(wx.body.querySelectorAll('.wxRole'), function(c){ return c.checked; }).map(function(c){ return c.value; });
+        cfg[f.key] = picked.concat(document.getElementById('wxF_roles_custom').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean));
+        return;
+      }
+      var el = document.getElementById('wxF_' + f.key); if (!el) return;
+      cfg[f.key] = f.type === 'number' ? +el.value : (f.type === 'tags' ? el.value.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : el.value);
+    });
+    return cfg;
+  }
+  function wxOpenEditor(job){
+    wx.modal.classList.add('open');
+    wx.body.innerHTML = '<p class="tools-empty">Loading…</p>';
+    wxLoadTemplates().then(function(){
+      var tpl = job.template ? wxTpl(job.template) : null;
+      wx.editing = {job: job, tpl: tpl};
+      wx.title.textContent = 'Edit — ' + job.name;
+      var html = '<label>Name<input type="text" id="wxName" maxlength="80" value="' + wxAttr(job.name) + '"></label>' + wxSchedHtml(job.schedule_spec);
+      if (!job.template && job.kind === 'prompt') html += '<label>What should Jarvis do? <span class="req">*</span><textarea id="wxPrompt" rows="6">' + escapeHtml(job.prompt || '') + '</textarea></label>';
+      if (job.kind === 'workflow') html += '<p class="wf-detail">Runs the saved step-by-step workflow “' + escapeHtml(job.workflow) + '”.</p>';
+      if (tpl) html += tpl.fields.map(function(f){ return wxField(f, (job.config || {})[f.key]); }).join('');
+      if (job.template === 'job_alerts') html += '<p class="wf-detail">Sent jobs are remembered so they never repeat. <button type="button" class="btn-small" data-wx="reset" data-id="' + job.id + '">Forget sent jobs</button></p>';
+      html += '<label class="wx-check"><input type="checkbox" id="wxEnabled"' + (job.enabled ? ' checked' : '') + '> Active (runs on its schedule)</label>' +
+        '<p class="login-error" id="wxErr" hidden></p><div id="wxPrev"></div>' +
+        '<div class="modal-actions">' + (tpl ? '<button type="button" class="btn-secondary" data-wx="epreview">Preview</button>' : '') +
+        '<button type="button" class="btn-secondary" data-wx="close">Cancel</button><button type="button" class="btn-primary" data-wx="save">Save</button></div>';
+      wx.body.innerHTML = html;
+      document.getElementById('wxSchedType').addEventListener('change', wxSyncSched);
+      wxSyncSched();
+    });
+  }
+  function wxErr(m){ var e = document.getElementById('wxErr'); if (e){ e.textContent = m || ''; e.hidden = !m; } }
+  function wxClose(){ wx.modal.classList.remove('open'); wx.editing = null; }
+  function wxSave(btn){
+    var ed = wx.editing; if (!ed) return;
+    var body = {name: document.getElementById('wxName').value.trim(), schedule: wxReadSched(), enabled: document.getElementById('wxEnabled').checked};
+    var p = document.getElementById('wxPrompt'); if (p) body.prompt = p.value.trim();
+    if (ed.tpl){ body.config = wxReadFields(ed.tpl); body.replace_config = true; }
+    btn.disabled = true; wxErr('');
+    wxSend('/api/automations/' + ed.job.id, 'PUT', body).then(function(r){
+      if (!wxOk(r)){ wxErr(wxMsg(r, 'Could not save.')); return; }
+      wxClose(); wfNotice(wxMsg(r, 'Saved.')); loadWorkflows();
+    }).catch(function(){ wxErr('Could not reach the server.'); }).finally(function(){ btn.disabled = false; });
+  }
+
+  function wxAction(btn){
+    var act = btn.getAttribute('data-wx'), id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
+    if (act === 'edit'){ var j = wxJob(id); if (j) wxOpenEditor(j); }
+    else if (act === 'duplicate'){ wxSend('/api/automations/' + id + '/duplicate', 'POST').then(function(r){ wfNotice(wxMsg(r, 'Duplicated.')); loadWorkflows(); }); }
+    else if (act === 'preview'){
+      if (wx.extra[id] && /wx-prev/.test(wx.extra[id])){ wxShowExtra(id, ''); return; }
+      wxShowExtra(id, '<p class="tools-empty">Building preview…</p>');
+      wxSend('/api/automations/' + id + '/preview', 'POST', {}).then(function(r){ wxShowExtra(id, wxOk(r) ? wxPreviewHtml(r.data.preview) : '<p class="tools-empty">' + escapeHtml(wxMsg(r, 'Preview failed.')) + '</p>'); });
+    } else if (act === 'history'){
+      if (wx.extra[id] && /wx-runs/.test(wx.extra[id])){ wxShowExtra(id, ''); return; }
+      wxShowExtra(id, '<p class="tools-empty">Loading…</p>');
+      wfJson('/api/automations/' + id).then(function(r){
+        var runs = (r.data && r.data.runs) || [];
+        wxShowExtra(id, '<div class="wx-runs">' + (runs.length ? runs.map(function(x){
+          return '<div class="wx-run ' + (x.ok === false ? 'bad' : (x.ok ? 'good' : '')) + '"><span>' + (x.ok === false ? '✗' : (x.ok ? '✓' : '…')) + ' ' + wxAgo(x.started_at) + (x.trigger ? ' · ' + escapeHtml(x.trigger) : '') + '</span><small>' + escapeHtml(x.status) + '</small></div>';
+        }).join('') : '<p class="tools-empty">No runs recorded yet.</p>') + '</div>');
+      });
+    } else if (act === 'fdelete'){
+      if (!window.confirm('Delete file “' + name + '”? Workflows that attach it will need another file.')) return;
+      wfJson('/api/automations/files/' + encodeURIComponent(name), {method: 'DELETE'}).then(function(r){ wfNotice(wxMsg(r, 'Deleted.')); wxLoadFiles(); });
+    } else if (act === 'close'){ wxClose(); }
+    else if (act === 'save'){ wxSave(btn); }
+    else if (act === 'epreview'){
+      var box = document.getElementById('wxPrev'); box.innerHTML = '<p class="tools-empty">Building preview…</p>'; btn.disabled = true;
+      wxSend('/api/automations/' + wx.editing.job.id + '/preview', 'POST', {config: wxReadFields(wx.editing.tpl)}).then(function(r){
+        box.innerHTML = wxOk(r) ? wxPreviewHtml(r.data.preview) : ''; if (!wxOk(r)) wxErr(wxMsg(r, 'Preview failed.'));
+      }).finally(function(){ btn.disabled = false; });
+    } else if (act === 'reset'){
+      if (!window.confirm('Forget every job this workflow already sent? They may be emailed again.')) return;
+      wxSend('/api/automations/' + id + '/reset-memory', 'POST').then(function(r){ wfNotice(wxMsg(r, 'Done.')); });
+    }
+  }
+  function wxClick(e){
+    var btn = e.target.closest ? e.target.closest('[data-wx]') : null;
+    if (btn && !btn.disabled){ e.stopPropagation(); wxAction(btn); }
+  }
+  wf.sidebar.addEventListener('click', wxClick, true);
+  wx.modal.addEventListener('click', function(e){ if (e.target === wx.modal) wxClose(); else wxClick(e); });
+  wf.sidebar.addEventListener('change', function(e){ if (e.target.getAttribute('data-wx-upload')) wxUpload(e.target); });
+  wx.modal.addEventListener('change', function(e){
+    var forId = e.target.getAttribute('data-wx-upload-for');
+    if (forId) wxUpload(e.target, function(n){ var sel = document.getElementById(forId); if (sel){ sel.innerHTML = wxFileOpts(n); } });
+  });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && wx.modal.classList.contains('open')) wxClose(); });
+  wf.btn.addEventListener('click', function(){ wxRenderChat(); wxLoadTemplates().then(wxRenderFiles); });
 
   function openSidebar(sidebarEl){
     closeDashboard();
