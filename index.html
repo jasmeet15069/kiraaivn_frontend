@@ -665,6 +665,20 @@ body{
 .kh-sub.ok{color:#3fb950;}
 .kh-sub.bad{color:var(--danger);}
 .kh-sub.warn{color:#d99a2b;}
+.kh-prov{font-size:12px;font-weight:700;margin:10px 0 2px;color:var(--text);}
+.kh-tag{font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:rgba(63,185,80,.15);color:#3fb950;}
+.kh-tag.paid{background:rgba(217,154,43,.15);color:#d99a2b;}
+.kh-main{flex:1;min-width:0;}
+.kh-key{display:block;font-family:'JetBrains Mono',monospace;font-size:11.5px;margin:4px 0;overflow-wrap:anywhere;color:var(--text);}
+.kh-actions{display:flex;flex-wrap:wrap;gap:6px;}
+.kh-edit{display:flex;gap:6px;margin-top:6px;}
+.kh-edit[hidden]{display:none;}
+.kh-edit input,.kh-add-row input,.kh-add-row select{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--border);color:var(--text);font-size:12.5px;padding:6px 8px;border-radius:7px;font-family:inherit;}
+.kh-add{margin-top:10px;}
+.kh-add-row{display:flex;gap:6px;flex-wrap:wrap;}
+.kh-add-row select{flex:0 1 190px;}
+.kh-msg{font-size:12px;margin:6px 0 0;color:#3fb950;}
+.kh-msg.err{color:var(--danger);}
 .kh-foot{font-size:11px;color:var(--text-muted);margin:8px 0 0;}
 .cr-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
 .cr-tab{font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;}
@@ -1014,7 +1028,15 @@ body{
         <button type="button" class="btn-small" id="keyHealthRefresh" title="Test every key now">↻ Check</button>
       </div>
       <div id="keyHealthList"><p class="tools-empty">Loading…</p></div>
-      <p class="kh-foot">If the primary key hits its limit or is rejected, Jarvis switches to the backup automatically.</p>
+      <div class="kh-add">
+        <div class="kh-add-row">
+          <select id="khAddProvider" aria-label="Provider"></select>
+          <input type="password" id="khAddKey" placeholder="Paste an API key" autocomplete="off" spellcheck="false">
+          <button type="button" class="btn-small" id="khAddBtn">+ Add key</button>
+        </div>
+        <p class="kh-msg" id="khMsg" hidden></p>
+      </div>
+      <p class="kh-foot">Every key is checked with the provider before it's saved, and is stored only on your server. If the primary key hits its limit or is rejected, Jarvis switches to the next key automatically. Adding a key for another provider enables its models.</p>
     </div>
   </div>
 
@@ -2052,27 +2074,83 @@ body{
     window.open('/vault/graph/', '_blank', 'noopener');
   });
 
-  // ── AI provider key health (validation layer; failover itself happens on the server) ──
-  var kh = { list: document.getElementById('keyHealthList'), btn: document.getElementById('keyHealthRefresh') };
+  // ── AI provider keys: health + full management (view / reveal / add / edit / make primary / delete) ──
+  var kh = { list: document.getElementById('keyHealthList'), btn: document.getElementById('keyHealthRefresh'),
+             sel: document.getElementById('khAddProvider'), input: document.getElementById('khAddKey'),
+             add: document.getElementById('khAddBtn'), msg: document.getElementById('khMsg'),
+             providers: [], health: {}, revealed: {} };
+  function khMsg(t, err){ kh.msg.textContent = t || ''; kh.msg.hidden = !t; kh.msg.classList.toggle('err', !!err); }
+  function khJson(path, opts){ return apiFetch(path, opts).then(function(res){ return res.json().catch(function(){ return {}; }).then(function(d){ return {ok: res.ok && d.ok !== false, data: d}; }); }); }
+  function khSend(path, method, body){ return khJson(path, {method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})}); }
+  function khRender(){
+    var withKeys = kh.providers.filter(function(p){ return p.keys.length; });
+    if (!withKeys.length){ kh.list.innerHTML = '<p class="tools-empty">No keys saved yet.</p>'; }
+    else kh.list.innerHTML = withKeys.map(function(p){
+      return '<div class="kh-prov">' + escapeHtml(p.label) + (p.paid ? ' <span class="kh-tag paid">Paid</span>' : ' <span class="kh-tag">Free tier</span>') + '</div>' + p.keys.map(function(k){
+        var h = kh.health[p.label + '…' + k.masked.slice(-4)];
+        var cls = k.invalid ? 'bad' : !h ? '' : (h.status === 'ok' ? (h.cooling_down_s ? 'warn' : 'ok') : (/rate/.test(h.status) ? 'warn' : 'bad'));
+        var label = k.invalid ? 'Rejected' : !h ? 'Checking…' : (h.status === 'ok' ? (h.cooling_down_s ? 'Cooling down ' + h.cooling_down_s + 's' : 'Working') : h.status);
+        var id = p.id + '#' + k.index, full = kh.revealed[id];
+        return '<div class="kh-row"><span class="service-dot ' + (cls === 'ok' ? 'active' : cls === 'warn' ? 'activating' : cls === 'bad' ? 'failed' : '') + '"></span>' +
+          '<div class="kh-main"><div class="kh-title">' + (k.index === 0 ? 'Primary key' : 'Backup key ' + k.index) +
+          ' <span class="kh-sub ' + cls + '">· ' + escapeHtml(label) + (h && h.missing_models && h.missing_models.length ? ' · missing: ' + escapeHtml(h.missing_models.join(', ')) : '') + '</span></div>' +
+          '<code class="kh-key">' + escapeHtml(full || k.masked) + '</code>' +
+          '<div class="kh-actions">' +
+          '<button type="button" class="btn-small" data-kh="reveal" data-p="' + p.id + '" data-i="' + k.index + '">' + (full ? 'Hide' : 'Show') + '</button>' +
+          (full ? '<button type="button" class="btn-small" data-kh="copy" data-p="' + p.id + '" data-i="' + k.index + '">Copy</button>' : '') +
+          '<button type="button" class="btn-small" data-kh="edit" data-p="' + p.id + '" data-i="' + k.index + '">Edit</button>' +
+          (k.index > 0 ? '<button type="button" class="btn-small" data-kh="primary" data-p="' + p.id + '" data-i="' + k.index + '">Make primary</button>' : '') +
+          '<button type="button" class="btn-small danger" data-kh="delete" data-p="' + p.id + '" data-i="' + k.index + '">Delete</button>' +
+          '</div><div class="kh-edit" id="khEdit_' + p.id + '_' + k.index + '" hidden><input type="password" placeholder="Paste the new key" autocomplete="off" spellcheck="false">' +
+          '<button type="button" class="btn-small" data-kh="save" data-p="' + p.id + '" data-i="' + k.index + '">Verify &amp; save</button></div></div></div>';
+      }).join('');
+    }).join('');
+    var cur = kh.sel.value;
+    kh.sel.innerHTML = kh.providers.map(function(p){ return '<option value="' + p.id + '">' + escapeHtml(p.label) + (p.paid ? ' (paid)' : '') + (p.keys.length ? ' · ' + p.keys.length + ' key' + (p.keys.length > 1 ? 's' : '') : '') + '</option>'; }).join('');
+    if (cur) kh.sel.value = cur;
+  }
   function loadKeyHealth(){
     kh.btn.disabled = true;
-    kh.list.innerHTML = '<p class="tools-empty">Checking keys…</p>';
-    apiFetch('/api/providers/health').then(function(res){ return res.json(); }).then(function(d){
-      var keys = (d && d.keys) || [];
-      if (!keys.length){ kh.list.innerHTML = '<p class="tools-empty">No provider keys configured.</p>'; return; }
-      kh.list.innerHTML = keys.map(function(k){
-        var ok = k.status === 'ok', cls = ok ? (k.cooling_down_s ? 'warn' : 'ok') : (/rate/.test(k.status) ? 'warn' : 'bad');
-        var label = ok ? (k.cooling_down_s ? 'Cooling down ' + k.cooling_down_s + 's' : 'Working') : k.status;
-        return '<div class="kh-row"><span class="service-dot ' + (cls === 'ok' ? 'active' : cls === 'warn' ? 'activating' : 'failed') + '"></span>' +
-          '<div class="kh-main"><div class="kh-title">' + escapeHtml(k.provider) + ' · ' + escapeHtml(k.role) + ' <code>' + escapeHtml(k.key) + '</code></div>' +
-          '<div class="kh-sub ' + cls + '">' + escapeHtml(label) +
-          (k.missing_models && k.missing_models.length ? ' · missing models: ' + escapeHtml(k.missing_models.join(', ')) : (ok ? ' · all models available' : '')) +
-          '</div></div></div>';
-      }).join('');
-    }).catch(function(){ kh.list.innerHTML = '<p class="tools-empty">Could not check the keys right now.</p>'; })
+    if (!kh.providers.length) kh.list.innerHTML = '<p class="tools-empty">Loading keys…</p>';
+    khJson('/api/providers/keys').then(function(r){ if (r.ok){ kh.providers = r.data.providers || []; khRender(); } else khMsg((r.data && r.data.error) || 'Could not load keys.', true); })
+      .then(function(){ return khJson('/api/providers/health'); })
+      .then(function(r){ kh.health = {}; ((r.data && r.data.keys) || []).forEach(function(h){ kh.health[h.provider + h.key] = h; }); khRender(); })
+      .catch(function(){ khMsg('Could not reach the server.', true); })
       .finally(function(){ kh.btn.disabled = false; });
   }
+  function khAfter(r, okMsg){
+    if (r.ok){ kh.providers = r.data.providers || kh.providers; kh.revealed = {}; khMsg(r.data.message || okMsg); loadKeyHealth(); }
+    else khMsg((r.data && (r.data.error || r.data.message)) || 'Failed.', true);
+  }
   kh.btn.addEventListener('click', loadKeyHealth);
+  kh.add.addEventListener('click', function(){
+    var key = kh.input.value.trim(); if (key.length < 16){ khMsg('Paste the full API key.', true); return; }
+    kh.add.disabled = true; khMsg('Checking the key with the provider…');
+    khSend('/api/providers/keys', 'POST', {provider: kh.sel.value, key: key}).then(function(r){ khAfter(r, 'Added.'); if (r.ok) kh.input.value = ''; })
+      .finally(function(){ kh.add.disabled = false; });
+  });
+  kh.list.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('[data-kh]') : null; if (!b || b.disabled) return;
+    var act = b.getAttribute('data-kh'), p = b.getAttribute('data-p'), i = b.getAttribute('data-i'), id = p + '#' + i;
+    if (act === 'reveal'){
+      if (kh.revealed[id]){ delete kh.revealed[id]; khRender(); return; }
+      khJson('/api/providers/keys/' + p + '/' + i + '/reveal').then(function(r){ if (r.ok){ kh.revealed[id] = r.data.key; khRender(); } else khMsg('Could not show the key.', true); });
+    } else if (act === 'copy'){
+      try { navigator.clipboard.writeText(kh.revealed[id]); khMsg('Key copied.'); } catch(err){ khMsg('Copy failed — select the key and copy it.', true); }
+    } else if (act === 'edit'){
+      var box = document.getElementById('khEdit_' + p + '_' + i); box.hidden = !box.hidden; if (!box.hidden) box.querySelector('input').focus();
+    } else if (act === 'save'){
+      var inp = document.getElementById('khEdit_' + p + '_' + i).querySelector('input'); var key = inp.value.trim();
+      if (key.length < 16){ khMsg('Paste the full API key.', true); return; }
+      b.disabled = true; khMsg('Checking the key with the provider…');
+      khSend('/api/providers/keys/' + p + '/' + i, 'PUT', {key: key}).then(function(r){ khAfter(r, 'Updated.'); }).finally(function(){ b.disabled = false; });
+    } else if (act === 'primary'){
+      khSend('/api/providers/keys/' + p + '/' + i + '/primary', 'POST').then(function(r){ khAfter(r, 'Done.'); });
+    } else if (act === 'delete'){
+      if (!window.confirm('Delete this key? Jarvis stops using it immediately (it stays valid at the provider until you revoke it there).')) return;
+      khJson('/api/providers/keys/' + p + '/' + i, {method: 'DELETE'}).then(function(r){ khAfter(r, 'Deleted.'); });
+    }
+  });
 
   els.connectorBtn.addEventListener('click', function(){
     openSidebar(els.connectorSidebar);
