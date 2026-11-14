@@ -654,6 +654,35 @@ body{
 .switch:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 .wf-note{font-size:12px;padding:8px 10px;border-radius:8px;background:var(--accent-soft);color:var(--text);margin-bottom:12px;}
 .wf-steps{margin:8px 0 0;padding-left:18px;font-size:12px;color:var(--text-muted);line-height:1.5;}
+.title-block{min-width:0;flex:1 1 auto;}
+.title-block #statusLine{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.cr-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.cr-tab{font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;}
+.cr-tab.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+.cr-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;}
+.cr-stats div{border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;background:var(--surface);}
+.cr-stats b{display:block;font-size:18px;}
+.cr-stats span{font-size:10.5px;color:var(--text-muted);}
+.cr-sender{font-size:12px;padding:8px 10px;border-radius:9px;margin-bottom:8px;line-height:1.5;}
+.cr-sender.ok{background:rgba(63,185,80,.12);}
+.cr-sender.warn{background:var(--danger-soft);}
+.cr-meta{font-size:11px;color:var(--text-muted);margin-bottom:10px;}
+.cr-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.cr-filters .on{border-color:var(--accent);color:var(--accent);}
+.cr-det{margin-top:10px;font-size:12px;line-height:1.5;}
+.cr-det ul{margin:4px 0 8px;padding-left:18px;}
+.cr-chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px;}
+.cr-chips span{background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:11px;}
+.cr-mail{border:1px solid var(--border);border-radius:8px;padding:8px;margin:4px 0 8px;background:var(--surface-2);}
+.cr-mail pre,.cr-pre{white-space:pre-wrap;font-family:inherit;margin:6px 0 0;font-size:12px;max-height:280px;overflow:auto;}
+.cr-err{color:var(--danger);font-size:11.5px;margin:4px 0;}
+.cr-status{font-size:11.5px;padding:4px 6px;border-radius:7px;background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+.cr-form{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;}
+.cr-form label{font-size:11.5px;font-weight:600;color:var(--text-muted);display:flex;flex-direction:column;gap:4px;}
+.cr-form input[type=text],.cr-form input[type=password],.cr-form textarea{background:var(--surface-2);border:1px solid var(--border);color:var(--text);font-size:13px;padding:8px 10px;border-radius:8px;font-family:inherit;width:100%;box-sizing:border-box;}
+.cr-form textarea{resize:vertical;line-height:1.5;}
+.cr-json{font-family:'JetBrains Mono',monospace !important;font-size:11.5px !important;}
+.cr-form details summary{cursor:pointer;font-size:12px;font-weight:600;}
 .wx-chat{border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:12px;background:var(--surface-2);}
 .wx-chat-title{font-size:12px;font-weight:700;margin-bottom:6px;}
 .wx-chat-log{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
@@ -834,6 +863,9 @@ body{
       <button class="icon-btn" id="toolsBtn" aria-label="Show available tools" title="Available tools">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
       </button>
+      <button class="icon-btn" id="careerBtn" aria-label="Career agent" title="Career agent — auto-apply, tailored resumes, profile, knowledge files">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M3 13h18"/></svg>
+      </button>
       <button class="icon-btn" id="workflowsBtn" aria-label="Workflows" title="Workflows — scheduled automations">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
       </button>
@@ -942,6 +974,19 @@ body{
       <div id="wxFilesList"><p class="tools-empty">Loading…</p></div>
       <p class="dashboard-section-label">Saved workflows</p>
       <div id="savedWorkflowsList"><p class="tools-empty">Loading…</p></div>
+    </div>
+  </div>
+
+  <div class="sidebar wf-sidebar" id="careerSidebar">
+    <div class="sidebar-head">
+      <h2>Career agent</h2>
+      <button class="icon-btn" id="careerCloseBtn" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="sidebar-body">
+      <div id="careerNote" class="wf-note" hidden></div>
+      <div id="careerBody"><p class="tools-empty">Loading…</p></div>
     </div>
   </div>
 
@@ -1739,17 +1784,246 @@ body{
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && wx.modal.classList.contains('open')) wxClose(); });
   wf.btn.addEventListener('click', function(){ wxRenderChat(); wxLoadTemplates().then(wxRenderFiles); });
 
+  // ── Career panel: applications monitor, JD-tailored resume (LaTeX agent), profile, knowledge files, sending account ──
+  var cr = { btn: document.getElementById('careerBtn'), sidebar: document.getElementById('careerSidebar'),
+             closeBtn: document.getElementById('careerCloseBtn'), body: document.getElementById('careerBody'),
+             note: document.getElementById('careerNote'), tab: 'apps', apps: [], stats: null, profile: null,
+             files: [], open: {}, timer: null, filter: '' };
+  function crAttr(s){ return escapeHtml(s == null ? '' : String(s)).replace(/"/g, '&quot;'); }
+  function crSend(path, method, body){ return wfJson(path, {method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})}); }
+  function crOk(r){ return r.ok && !(r.data && r.data.ok === false); }
+  function crMsg(r, fb){ return (r && r.data && (r.data.message || r.data.error)) || fb; }
+  function crNotice(m, err){ cr.note.textContent = m || ''; cr.note.hidden = !m; cr.note.classList.toggle('err', !!err);
+    if (m) setTimeout(function(){ if (cr.note.textContent === m) cr.note.hidden = true; }, 8000); }
+  var CR_STATUS = {tailoring: ['⏳', 'Tailoring…'], considered: ['…', 'Considered'], tailored: ['📄', 'Resume ready'],
+    ready_to_apply: ['📝', 'Ready to apply'], emailed: ['✅', 'Applied (emailed)'], failed: ['⚠️', 'Failed'],
+    skipped: ['⏭', 'Skipped'], applied_manually: ['✅', 'Applied (manual)'], interview: ['🎯', 'Interview'],
+    offer: ['🏆', 'Offer'], rejected: ['✖', 'Rejected']};
+
+  function crTabs(){
+    var tabs = [['apps', 'Applications'], ['tailor', 'Tailor resume'], ['profile', 'Profile'], ['knowledge', 'Knowledge files'], ['sending', 'Sending']];
+    return '<div class="cr-tabs">' + tabs.map(function(t){ return '<button type="button" class="cr-tab' + (cr.tab === t[0] ? ' on' : '') + '" data-cr="tab" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
+  }
+  function crRender(){
+    var html = crTabs();
+    if (cr.tab === 'apps') html += crAppsHtml();
+    else if (cr.tab === 'tailor') html += crTailorHtml();
+    else if (cr.tab === 'profile') html += crProfileHtml();
+    else if (cr.tab === 'knowledge') html += crKnowledgeHtml();
+    else html += crSendingHtml();
+    cr.body.innerHTML = html;
+  }
+  function crStatsHtml(){
+    var s = cr.stats; if (!s) return '';
+    var b = s.by_status || {};
+    return '<div class="cr-stats"><div><b>' + (b.emailed || 0) + '</b><span>emailed</span></div><div><b>' + (b.ready_to_apply || 0) + '</b><span>ready to apply</span></div>' +
+      '<div><b>' + ((b.applied_manually || 0) + (b.interview || 0) + (b.offer || 0)) + '</b><span>applied / interviews</span></div><div><b>' + (s.emailed_today || 0) + '</b><span>sent today</span></div></div>' +
+      '<div class="cr-sender ' + (s.sender && s.sender.ready ? 'ok' : 'warn') + '">' + escapeHtml(s.sender ? s.sender.message : '') +
+      (s.sender && !s.sender.ready ? ' <button type="button" class="btn-small" data-cr="tab" data-tab="sending">Set up</button>' : '') + '</div>' +
+      '<div class="cr-meta">Resume model: ' + escapeHtml(s.model || '') + ' · LaTeX ' + (s.latex ? 'ready' : 'missing') + ' · the Auto-apply workflow (Workflows panel) runs the search, tailoring and sending on its schedule.</div>';
+  }
+  function crAppsHtml(){
+    var list = cr.apps.filter(function(a){ return !cr.filter || a.status === cr.filter; });
+    var filters = [['', 'All'], ['ready_to_apply', 'Ready'], ['emailed', 'Emailed'], ['applied_manually', 'Applied'], ['interview', 'Interview'], ['skipped', 'Skipped'], ['failed', 'Failed']];
+    var html = crStatsHtml() + '<div class="cr-filters">' + filters.map(function(f){ return '<button type="button" class="btn-small' + (cr.filter === f[0] ? ' on' : '') + '" data-cr="filter" data-f="' + f[0] + '">' + f[1] + '</button>'; }).join('') +
+      '<button type="button" class="btn-small" data-cr="refresh">↻</button></div>';
+    if (!list.length) return html + '<p class="tools-empty">No applications here yet. They appear as the Auto-apply workflow runs, or tailor one yourself in “Tailor resume”.</p>';
+    return html + list.map(function(a){
+      var st = CR_STATUS[a.status] || ['•', a.status];
+      var open = cr.open[a.id];
+      var det = '';
+      if (open){
+        det = '<div class="cr-det">' +
+          (a.fit_reasons && a.fit_reasons.length ? '<b>Why it fits</b><ul>' + a.fit_reasons.map(function(x){ return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>' : '') +
+          (a.missing && a.missing.length ? '<b>Gaps</b><div class="cr-chips">' + a.missing.map(function(x){ return '<span>' + escapeHtml(x) + '</span>'; }).join('') + '</div>' : '') +
+          (a.subject ? '<b>Email sent</b><div class="cr-mail"><div>To: ' + escapeHtml(a.email_to || '') + '</div><div>Subject: ' + escapeHtml(a.subject) + '</div><pre>' + escapeHtml(a.body || '') + '</pre></div>' : '') +
+          (a.error ? '<div class="cr-err">' + escapeHtml(a.error) + '</div>' : '') +
+          '<div class="wf-actions">' +
+          (a.has_resume ? '<button type="button" class="btn-small" data-cr="pdf" data-id="' + a.id + '">📄 View resume</button><button type="button" class="btn-small" data-cr="tex" data-id="' + a.id + '">LaTeX</button>' : '') +
+          (a.has_resume && a.status !== 'emailed' ? '<button type="button" class="btn-small" data-cr="sendnow" data-id="' + a.id + '" data-to="' + crAttr(a.email_to || '') + '">✉ Send application</button>' : '') +
+          '<select class="cr-status" data-cr-status="' + a.id + '"><option value="">Mark as…</option><option value="applied_manually">Applied</option><option value="interview">Interview</option><option value="offer">Offer</option><option value="rejected">Rejected</option><option value="skipped">Skip</option></select>' +
+          '<button type="button" class="btn-small danger" data-cr="delete" data-id="' + a.id + '">Delete</button></div></div>';
+      }
+      return '<div class="wf-card cr-app" data-id="' + a.id + '"><div class="wf-head" data-cr="toggle" data-id="' + a.id + '" style="cursor:pointer">' +
+        '<span class="wf-icon">' + st[0] + '</span><div class="wf-main"><div class="wf-title">' + escapeHtml(a.title || '(untitled)') + '</div>' +
+        '<div class="wf-detail" style="margin-top:2px">' + escapeHtml(a.company || '') + (a.location ? ' · ' + escapeHtml(a.location.length > 60 ? a.location.slice(0, 57) + '…' : a.location) : '') + (a.source ? ' · ' + escapeHtml(a.source) : '') + '</div>' +
+        '<div class="wf-sched">' + st[1] + (a.fit != null ? ' · fit ' + a.fit + '/100' : '') + ' · ' + wfAgo(a.updated_at) + '</div></div>' +
+        (a.url ? '<a class="btn-small" href="' + crAttr(a.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">Job ↗</a>' : '') + '</div>' + det + '</div>';
+    }).join('');
+  }
+  function crTailorHtml(){
+    return '<div class="cr-form"><p class="wf-detail">Paste a job description (or a link). The LaTeX resume agent tailors your resume to it with the 120B model — honest edits only (no invented skills or numbers) — and compiles a PDF. It appears under Applications.</p>' +
+      '<label>Job title<input type="text" id="crT_title" placeholder="e.g. Power BI Developer"></label>' +
+      '<label>Company<input type="text" id="crT_company" placeholder="e.g. Contoso"></label>' +
+      '<label>Job link (optional)<input type="text" id="crT_url" placeholder="https://…"></label>' +
+      '<label>Job description<textarea id="crT_jd" rows="10" placeholder="Paste the full job description…"></textarea></label>' +
+      '<div class="wf-actions"><button type="button" class="btn-primary" data-cr="tailor">Build tailored resume</button></div></div>';
+  }
+  function crProfileHtml(){
+    var p = cr.profile; if (!p) return '<p class="tools-empty">Loading…</p>';
+    var prefs = p.preferences || {};
+    return '<div class="cr-form"><p class="wf-detail">Everything the agents know about you. Resume tailoring may only use facts from here — add genuine skills under “Also skilled in” to let it use them.</p>' +
+      '<label>Headline<input type="text" id="crP_headline" value="' + crAttr(p.headline) + '"></label>' +
+      '<label>Summary<textarea id="crP_summary" rows="4">' + escapeHtml(p.summary) + '</textarea></label>' +
+      '<label>Also skilled in (comma separated — only real skills)<input type="text" id="crP_extra" value="' + crAttr((p.extra_skills || []).join(', ')) + '" placeholder="e.g. Python, PySpark"></label>' +
+      '<label>Target roles<input type="text" id="crP_roles" value="' + crAttr((p.target_roles || []).join(', ')) + '"></label>' +
+      '<label>Preferred roles<input type="text" id="crP_rec" value="' + crAttr((p.recommended_roles || []).join(', ')) + '"></label>' +
+      '<div class="wx-row"><label>Notice period<input type="text" id="crP_notice" value="' + crAttr(prefs.notice_period) + '"></label>' +
+      '<label>Current CTC<input type="text" id="crP_cctc" value="' + crAttr(prefs.current_ctc) + '"></label>' +
+      '<label>Expected CTC<input type="text" id="crP_ectc" value="' + crAttr(prefs.expected_ctc) + '"></label></div>' +
+      '<label>Relocation / location preference<input type="text" id="crP_reloc" value="' + crAttr(prefs.relocation) + '"></label>' +
+      '<label>Anything else Jarvis should know about you<textarea id="crP_about" rows="3">' + escapeHtml(p.about_me || '') + '</textarea></label>' +
+      '<details><summary>Advanced: edit the whole profile (experience, projects, skills, education, certifications) as JSON</summary>' +
+      '<textarea id="crP_json" rows="18" class="cr-json">' + escapeHtml(JSON.stringify(p, null, 2)) + '</textarea>' +
+      '<div class="wf-actions"><button type="button" class="btn-small" data-cr="savejson">Save JSON</button></div></details>' +
+      '<div class="wf-actions"><button type="button" class="btn-primary" data-cr="saveprofile">Save profile</button></div></div>';
+  }
+  function crKnowledgeHtml(){
+    var list = cr.files.length ? cr.files.map(function(f){
+      return '<div class="wf-card"><div class="wf-head"><span class="wf-icon">📚</span><div class="wf-main"><div class="wf-title">' + escapeHtml(f.name) + '</div>' +
+        '<div class="wf-detail" style="margin-top:2px">' + Math.round(f.chars / 100) / 10 + 'k characters · ' + f.chunks + ' chunks</div></div>' +
+        '<button type="button" class="switch" role="switch" aria-checked="' + (f.enabled ? 'true' : 'false') + '" aria-label="Use ' + crAttr(f.name) + '" data-cr="kenable" data-name="' + crAttr(f.name) + '"></button></div>' +
+        '<div class="wf-actions"><label class="wx-check"><input type="checkbox" data-cr-pin="' + crAttr(f.name) + '"' + (f.pinned ? ' checked' : '') + (f.chars > 3000 ? ' disabled' : '') + '> Always include' + (f.chars > 3000 ? ' (small files only)' : '') + '</label>' +
+        '<button type="button" class="btn-small" data-cr="kview" data-name="' + crAttr(f.name) + '">View text</button>' +
+        '<button type="button" class="btn-small danger" data-cr="kdelete" data-name="' + crAttr(f.name) + '">Delete</button></div><div class="wx-extra" id="crK_' + crAttr(f.name) + '"></div></div>';
+    }).join('') : '<p class="tools-empty">No knowledge files yet.</p>';
+    return '<div class="cr-form"><p class="wf-detail">Add .md, .txt, .csv, .xlsx, .pdf, .docx or .json files. When you chat (website, iOS app or a workflow), Jarvis automatically reads the parts relevant to your message — like Claude Projects. Your profile is always available as “about me”.</p>' +
+      '<label class="btn-small wx-upload">⬆ Add files<input type="file" multiple data-cr-upload="1" accept=".md,.txt,.csv,.tsv,.json,.xlsx,.pdf,.docx,.log,.yaml,.yml" hidden></label></div>' + list;
+  }
+  function crSendingHtml(){
+    var s = cr.stats && cr.stats.sender;
+    return '<div class="cr-form"><div class="cr-sender ' + (s && s.ready ? 'ok' : 'warn') + '">' + escapeHtml(s ? s.message : 'Loading…') + '</div>' +
+      '<p class="wf-detail">Applications are emailed from your own Gmail. Google needs an <b>app password</b> for this (not your normal password): myaccount.google.com → Security → 2-Step Verification → App passwords → create one named “Jarvis”. Jarvis tests it with Gmail before saving; it is stored only on your server and never shown again.</p>' +
+      '<label>Gmail address<input type="text" id="crS_user" value="' + crAttr((s && s.address) || 'jasmeet.15069@gmail.com') + '" autocomplete="username"></label>' +
+      '<label>App password<input type="password" id="crS_pass" placeholder="16 characters" autocomplete="new-password"></label>' +
+      '<div class="wf-actions"><button type="button" class="btn-primary" data-cr="savesender">Verify &amp; save</button>' +
+      (s && s.ready ? '<button type="button" class="btn-small danger" data-cr="clearsender">Remove</button>' : '') + '</div>' +
+      '<p class="wf-detail">Safety limits (change them in Workflows → Auto-apply → Edit): max emails per day, applications per run, minimum fit score. Applications only go to an email address the job post itself gives — addresses are never guessed. Pause everything with the Auto-apply toggle.</p></div>';
+  }
+
+  function crLoadApps(){ return wfJson('/api/career/applications').then(function(r){ if (r.ok){ cr.apps = r.data.applications || []; cr.stats = r.data.stats; } }); }
+  function crLoadProfile(){ return wfJson('/api/career/profile').then(function(r){ if (r.ok){ cr.profile = r.data.profile; cr.stats = r.data.stats; } }); }
+  function crLoadFiles(){ return wfJson('/api/context/files').then(function(r){ if (r.ok) cr.files = r.data.files || []; }); }
+  function crRefresh(){
+    var p = cr.tab === 'profile' ? crLoadProfile() : cr.tab === 'knowledge' ? crLoadFiles() : crLoadApps();
+    return p.then(crRender).finally(crPoll);
+  }
+  function crPoll(){
+    if (cr.timer) clearTimeout(cr.timer);
+    if (!cr.sidebar.classList.contains('open') || cr.tab !== 'apps') return;
+    var busy = cr.apps.some(function(a){ return a.status === 'tailoring'; });
+    cr.timer = setTimeout(function(){ crLoadApps().then(function(){ if (cr.tab === 'apps' && !cr.body.querySelector('textarea:focus,input:focus')) crRender(); }).finally(crPoll); }, busy ? 4000 : 20000);
+  }
+  function crOpenFile(id, ext){
+    apiFetch('/api/career/applications/' + id + '/resume.' + ext).then(function(res){
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.blob();
+    }).then(function(b){
+      var url = URL.createObjectURL(b);
+      if (ext === 'pdf') window.open(url, '_blank', 'noopener');
+      else { var a = document.createElement('a'); a.href = url; a.download = 'Jasmeet_Sethi_Resume_' + id + '.tex'; document.body.appendChild(a); a.click(); a.remove(); }
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+    }).catch(function(e){ crNotice('Could not open the resume: ' + e.message, true); });
+  }
+  function crSplit(v){ return (v || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean); }
+  function crAction(btn){
+    var act = btn.getAttribute('data-cr'), id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
+    if (act === 'tab'){ cr.tab = btn.getAttribute('data-tab'); crRender(); crRefresh(); }
+    else if (act === 'filter'){ cr.filter = btn.getAttribute('data-f'); crRender(); }
+    else if (act === 'refresh'){ crRefresh(); }
+    else if (act === 'toggle'){ cr.open[id] = !cr.open[id]; crRender(); }
+    else if (act === 'pdf' || act === 'tex'){ crOpenFile(id, act); }
+    else if (act === 'sendnow'){
+      var to = window.prompt('Send this application (tailored resume + cover email) to:', btn.getAttribute('data-to') || '');
+      if (!to) return;
+      btn.disabled = true;
+      crSend('/api/career/applications/' + id + '/send', 'POST', {to: to}).then(function(r){ crNotice(crMsg(r, 'Sent.'), !crOk(r)); crRefresh(); });
+    } else if (act === 'delete'){
+      if (!window.confirm('Delete this application record and its resume?')) return;
+      wfJson('/api/career/applications/' + id, {method: 'DELETE'}).then(crRefresh);
+    } else if (act === 'tailor'){
+      var jd = document.getElementById('crT_jd').value.trim(), url = document.getElementById('crT_url').value.trim();
+      if (jd.length < 80 && !url){ crNotice('Paste the job description (or a link).', true); return; }
+      btn.disabled = true;
+      crSend('/api/career/tailor', 'POST', {jd: jd, url: url, title: document.getElementById('crT_title').value, company: document.getElementById('crT_company').value})
+        .then(function(r){ crNotice(crMsg(r, 'Building…'), !crOk(r)); if (crOk(r)){ cr.tab = 'apps'; cr.filter = ''; setTimeout(crRefresh, 1500); } })
+        .finally(function(){ btn.disabled = false; });
+    } else if (act === 'saveprofile'){
+      var p = Object.assign({}, cr.profile);
+      p.headline = document.getElementById('crP_headline').value.trim();
+      p.summary = document.getElementById('crP_summary').value.trim();
+      p.extra_skills = crSplit(document.getElementById('crP_extra').value);
+      p.target_roles = crSplit(document.getElementById('crP_roles').value);
+      p.recommended_roles = crSplit(document.getElementById('crP_rec').value);
+      p.preferences = Object.assign({}, p.preferences || {}, {notice_period: document.getElementById('crP_notice').value, current_ctc: document.getElementById('crP_cctc').value,
+        expected_ctc: document.getElementById('crP_ectc').value, relocation: document.getElementById('crP_reloc').value});
+      p.about_me = document.getElementById('crP_about').value;
+      crSend('/api/career/profile', 'PUT', {profile: p}).then(function(r){ crNotice(crMsg(r, 'Saved.'), !crOk(r)); if (crOk(r)) cr.profile = r.data.profile; crRender(); });
+    } else if (act === 'savejson'){
+      var obj; try { obj = JSON.parse(document.getElementById('crP_json').value); } catch(e){ crNotice('That JSON is not valid: ' + e.message, true); return; }
+      crSend('/api/career/profile', 'PUT', {profile: obj}).then(function(r){ crNotice(crMsg(r, 'Saved.'), !crOk(r)); if (crOk(r)) cr.profile = r.data.profile; crRender(); });
+    } else if (act === 'savesender'){
+      btn.disabled = true; crNotice('Checking the app password with Gmail…');
+      crSend('/api/career/sender', 'POST', {user: document.getElementById('crS_user').value, app_password: document.getElementById('crS_pass').value})
+        .then(function(r){ crNotice(crMsg(r, 'Saved.'), !crOk(r)); if (crOk(r) && cr.stats) cr.stats.sender = r.data.sender; crRender(); })
+        .finally(function(){ btn.disabled = false; });
+    } else if (act === 'clearsender'){
+      if (!window.confirm('Remove the sending account? Auto-apply will only prepare resumes until you add it again.')) return;
+      wfJson('/api/career/sender', {method: 'DELETE'}).then(function(r){ if (cr.stats) cr.stats.sender = r.data.sender; crNotice('Removed.'); crRender(); });
+    } else if (act === 'kenable'){
+      var f = cr.files.filter(function(x){ return x.name === name; })[0];
+      crSend('/api/context/files/' + encodeURIComponent(name), 'PATCH', {enabled: !(f && f.enabled)}).then(function(r){ if (crOk(r)) cr.files = r.data.files; crRender(); });
+    } else if (act === 'kview'){
+      var box = document.getElementById('crK_' + name);
+      if (box.innerHTML){ box.innerHTML = ''; return; }
+      wfJson('/api/context/files/' + encodeURIComponent(name) + '/text').then(function(r){ box.innerHTML = '<pre class="cr-pre">' + escapeHtml((r.data && r.data.text) || '') + '</pre>'; });
+    } else if (act === 'kdelete'){
+      if (!window.confirm('Remove “' + name + '” from Jarvis’s knowledge?')) return;
+      wfJson('/api/context/files/' + encodeURIComponent(name), {method: 'DELETE'}).then(function(r){ if (r.data && r.data.files) cr.files = r.data.files; crRender(); });
+    }
+  }
+  cr.sidebar.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('[data-cr]') : null;
+    if (btn && !btn.disabled && btn.tagName !== 'INPUT') crAction(btn);
+  });
+  cr.sidebar.addEventListener('change', function(e){
+    var t = e.target;
+    if (t.getAttribute('data-cr-status')){
+      if (!t.value) return;
+      crSend('/api/career/applications/' + t.getAttribute('data-cr-status'), 'PATCH', {status: t.value}).then(crRefresh);
+    } else if (t.getAttribute('data-cr-pin')){
+      crSend('/api/context/files/' + encodeURIComponent(t.getAttribute('data-cr-pin')), 'PATCH', {pinned: t.checked}).then(function(r){ if (crOk(r)) cr.files = r.data.files; crRender(); });
+    } else if (t.getAttribute('data-cr-upload')){
+      var files = Array.prototype.slice.call(t.files || []);
+      var chain = Promise.resolve();
+      files.forEach(function(f){
+        chain = chain.then(function(){
+          var fd = new FormData(); fd.append('file', f, f.name);
+          crNotice('Adding ' + f.name + '…');
+          return apiFetch('/api/context/files', {method: 'POST', body: fd}).then(function(res){ return res.json(); })
+            .then(function(d){ if (d.ok === false) crNotice(f.name + ': ' + (d.error || 'failed'), true); else { cr.files = d.files || cr.files; crNotice(d.message || 'Added.'); } });
+        });
+      });
+      chain.then(crRender);
+    }
+  });
+  cr.btn.addEventListener('click', function(){ openSidebar(cr.sidebar); crRender(); crRefresh(); });
+  cr.closeBtn.addEventListener('click', closeSidebars);
+
   function openSidebar(sidebarEl){
     closeDashboard();
     els.toolsSidebar.classList.toggle('open', sidebarEl === els.toolsSidebar);
     els.connectorSidebar.classList.toggle('open', sidebarEl === els.connectorSidebar);
     wf.sidebar.classList.toggle('open', sidebarEl === wf.sidebar);
+    cr.sidebar.classList.toggle('open', sidebarEl === cr.sidebar);
     els.sidebarOverlay.classList.add('open');
   }
   function closeSidebars(){
     els.toolsSidebar.classList.remove('open');
     els.connectorSidebar.classList.remove('open');
     wf.sidebar.classList.remove('open');
+    cr.sidebar.classList.remove('open');
+    if (cr.timer){ clearTimeout(cr.timer); cr.timer = null; }
     stopWorkflowsPolling();
     els.sidebarOverlay.classList.remove('open');
   }
