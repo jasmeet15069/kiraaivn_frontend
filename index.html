@@ -656,6 +656,16 @@ body{
 .wf-steps{margin:8px 0 0;padding-left:18px;font-size:12px;color:var(--text-muted);line-height:1.5;}
 .title-block{min-width:0;flex:1 1 auto;}
 .title-block #statusLine{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.kh-head{margin-top:18px;}
+.kh-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.kh-row .service-dot{margin-top:5px;flex:none;}
+.kh-title{font-size:12.5px;font-weight:600;color:var(--text);}
+.kh-title code{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text-muted);font-weight:400;}
+.kh-sub{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+.kh-sub.ok{color:#3fb950;}
+.kh-sub.bad{color:var(--danger);}
+.kh-sub.warn{color:#d99a2b;}
+.kh-foot{font-size:11px;color:var(--text-muted);margin:8px 0 0;}
 .cr-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
 .cr-tab{font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;}
 .cr-tab.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
@@ -999,6 +1009,12 @@ body{
     </div>
     <div class="sidebar-body">
       <div id="connectorStatusList"><p class="tools-empty">Loading…</p></div>
+      <div class="section-head-row kh-head">
+        <p class="dashboard-section-label">AI model keys</p>
+        <button type="button" class="btn-small" id="keyHealthRefresh" title="Test every key now">↻ Check</button>
+      </div>
+      <div id="keyHealthList"><p class="tools-empty">Loading…</p></div>
+      <p class="kh-foot">If the primary key hits its limit or is rejected, Jarvis switches to the backup automatically.</p>
     </div>
   </div>
 
@@ -2036,8 +2052,31 @@ body{
     window.open('/vault/graph/', '_blank', 'noopener');
   });
 
+  // ── AI provider key health (validation layer; failover itself happens on the server) ──
+  var kh = { list: document.getElementById('keyHealthList'), btn: document.getElementById('keyHealthRefresh') };
+  function loadKeyHealth(){
+    kh.btn.disabled = true;
+    kh.list.innerHTML = '<p class="tools-empty">Checking keys…</p>';
+    apiFetch('/api/providers/health').then(function(res){ return res.json(); }).then(function(d){
+      var keys = (d && d.keys) || [];
+      if (!keys.length){ kh.list.innerHTML = '<p class="tools-empty">No provider keys configured.</p>'; return; }
+      kh.list.innerHTML = keys.map(function(k){
+        var ok = k.status === 'ok', cls = ok ? (k.cooling_down_s ? 'warn' : 'ok') : (/rate/.test(k.status) ? 'warn' : 'bad');
+        var label = ok ? (k.cooling_down_s ? 'Cooling down ' + k.cooling_down_s + 's' : 'Working') : k.status;
+        return '<div class="kh-row"><span class="service-dot ' + (cls === 'ok' ? 'active' : cls === 'warn' ? 'activating' : 'failed') + '"></span>' +
+          '<div class="kh-main"><div class="kh-title">' + escapeHtml(k.provider) + ' · ' + escapeHtml(k.role) + ' <code>' + escapeHtml(k.key) + '</code></div>' +
+          '<div class="kh-sub ' + cls + '">' + escapeHtml(label) +
+          (k.missing_models && k.missing_models.length ? ' · missing models: ' + escapeHtml(k.missing_models.join(', ')) : (ok ? ' · all models available' : '')) +
+          '</div></div></div>';
+      }).join('');
+    }).catch(function(){ kh.list.innerHTML = '<p class="tools-empty">Could not check the keys right now.</p>'; })
+      .finally(function(){ kh.btn.disabled = false; });
+  }
+  kh.btn.addEventListener('click', loadKeyHealth);
+
   els.connectorBtn.addEventListener('click', function(){
     openSidebar(els.connectorSidebar);
+    loadKeyHealth();
     if (!toolsDataLoaded) loadToolsData();
     startConnectorPolling();
   });
