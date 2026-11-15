@@ -680,6 +680,17 @@ body{
 .kh-msg{font-size:12px;margin:6px 0 0;color:#3fb950;}
 .kh-msg.err{color:var(--danger);}
 .kh-foot{font-size:11px;color:var(--text-muted);margin:8px 0 0;}
+.cr-note{font-size:12px;padding:8px 10px;border-radius:8px;background:var(--surface-2);margin-bottom:8px;line-height:1.5;}
+.cr-note.ok{background:rgba(63,185,80,.12);}
+.cr-note.warn{background:rgba(217,154,43,.15);}
+.cr-shots{display:flex;gap:10px;overflow-x:auto;padding:6px 0 10px;}
+.cr-shot{margin:0;flex:none;}
+.cr-shot img{height:220px;border-radius:8px;border:1px solid var(--border);display:block;}
+.cr-shot-ph{height:220px;width:150px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);border-radius:8px;font-size:11px;color:var(--text-muted);}
+.cr-shot figcaption{font-size:11px;color:var(--text-muted);margin-top:3px;}
+.cr-answers{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0 10px;}
+.cr-answers td{border-top:1px solid var(--border);padding:5px 4px;vertical-align:top;overflow-wrap:anywhere;}
+.cr-answers td:first-child{color:var(--text-muted);width:45%;}
 .cr-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
 .cr-tab{font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;}
 .cr-tab.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
@@ -1836,7 +1847,39 @@ body{
   var CR_STATUS = {tailoring: ['⏳', 'Tailoring…'], considered: ['…', 'Considered'], tailored: ['📄', 'Resume ready'],
     ready_to_apply: ['📝', 'Ready to apply'], emailed: ['✅', 'Applied (emailed)'], failed: ['⚠️', 'Failed'],
     skipped: ['⏭', 'Skipped'], applied_manually: ['✅', 'Applied (manual)'], interview: ['🎯', 'Interview'],
-    offer: ['🏆', 'Offer'], rejected: ['✖', 'Rejected']};
+    offer: ['🏆', 'Offer'], rejected: ['✖', 'Rejected'], applied: ['✅', 'Applied (form submitted)'],
+    needs_review: ['✋', 'Needs you']};
+  var CR_DONE = ['applied', 'emailed', 'applied_manually', 'interview', 'offer'];
+  cr.details = {};
+  function crLoadDetail(id){
+    if (cr.details[id]) return;
+    cr.details[id] = {loading: true};
+    wfJson('/api/career/applications/' + id).then(function(r){
+      var d = (r.data && r.data.application) || {};
+      cr.details[id] = {fields: d.form_fields || [], shots: d.shots || [], note: d.note || '', method: d.method || '', imgs: {}};
+      (d.shots || []).forEach(function(k){
+        apiFetch('/api/career/applications/' + id + '/shot/' + k).then(function(res){ return res.ok ? res.blob() : null; }).then(function(b){
+          if (b){ cr.details[id].imgs[k] = URL.createObjectURL(b); if (cr.open[id]) crRender(); }
+        });
+      });
+      if (cr.open[id]) crRender();
+    });
+  }
+  function crDetailHtml(a){
+    var d = cr.details[a.id];
+    if (!d || d.loading) return '<p class="tools-empty">Loading details…</p>';
+    var shots = (d.shots || []).map(function(k){
+      var src = d.imgs[k];
+      return '<figure class="cr-shot">' + (src ? '<a href="' + src + '" target="_blank" rel="noopener"><img src="' + src + '" alt="' + k + ' screenshot"></a>' : '<div class="cr-shot-ph">Loading…</div>') +
+        '<figcaption>' + (k === 'filled' ? 'Form filled' : k === 'result' ? 'After submitting' : 'Error') + '</figcaption></figure>';
+    }).join('');
+    return (d.note ? '<div class="cr-note ' + (a.status === 'applied' || a.status === 'emailed' ? 'ok' : (a.status === 'needs_review' ? 'warn' : '')) + '">' + escapeHtml(d.note) + '</div>' : '') +
+      (a.status === 'needs_review' || a.status === 'ready_to_apply' ? '<div class="wf-actions">' + (a.url ? '<a class="btn-small" href="' + crAttr(a.url) + '" target="_blank" rel="noopener">Open job to finish ↗</a>' : '') +
+        '<button type="button" class="btn-small" data-cr="markapplied" data-id="' + a.id + '">✔ I submitted it</button></div>' : '') +
+      (shots ? '<b>Screenshots</b><div class="cr-shots">' + shots + '</div>' : '') +
+      (d.fields.length ? '<b>What Jarvis entered (' + d.fields.length + ')</b><table class="cr-answers">' + d.fields.map(function(f){
+        return '<tr><td>' + escapeHtml((f.question || '').replace(/✱/g, '').trim()) + '</td><td>' + escapeHtml(f.answer || '') + '</td></tr>'; }).join('') + '</table>' : '');
+  }
 
   function crTabs(){
     var tabs = [['apps', 'Applications'], ['tailor', 'Tailor resume'], ['profile', 'Profile'], ['knowledge', 'Knowledge files'], ['sending', 'Sending']];
@@ -1854,15 +1897,15 @@ body{
   function crStatsHtml(){
     var s = cr.stats; if (!s) return '';
     var b = s.by_status || {};
-    return '<div class="cr-stats"><div><b>' + (b.emailed || 0) + '</b><span>emailed</span></div><div><b>' + (b.ready_to_apply || 0) + '</b><span>ready to apply</span></div>' +
-      '<div><b>' + ((b.applied_manually || 0) + (b.interview || 0) + (b.offer || 0)) + '</b><span>applied / interviews</span></div><div><b>' + (s.emailed_today || 0) + '</b><span>sent today</span></div></div>' +
+    return '<div class="cr-stats"><div><b>' + ((b.applied || 0) + (b.emailed || 0) + (b.applied_manually || 0)) + '</b><span>applied</span></div><div><b>' + (b.needs_review || 0) + '</b><span>needs you</span></div>' +
+      '<div><b>' + (b.interview || 0) + '</b><span>interviews</span></div><div><b>' + (s.applied_today || s.emailed_today || 0) + '</b><span>today</span></div></div>' +
       '<div class="cr-sender ' + (s.sender && s.sender.ready ? 'ok' : 'warn') + '">' + escapeHtml(s.sender ? s.sender.message : '') +
       (s.sender && !s.sender.ready ? ' <button type="button" class="btn-small" data-cr="tab" data-tab="sending">Set up</button>' : '') + '</div>' +
       '<div class="cr-meta">Resume model: ' + escapeHtml(s.model || '') + ' · LaTeX ' + (s.latex ? 'ready' : 'missing') + ' · the Auto-apply workflow (Workflows panel) runs the search, tailoring and sending on its schedule.</div>';
   }
   function crAppsHtml(){
-    var list = cr.apps.filter(function(a){ return !cr.filter || a.status === cr.filter; });
-    var filters = [['', 'All'], ['ready_to_apply', 'Ready'], ['emailed', 'Emailed'], ['applied_manually', 'Applied'], ['interview', 'Interview'], ['skipped', 'Skipped'], ['failed', 'Failed']];
+    var list = cr.apps.filter(function(a){ return !cr.filter || a.status === cr.filter || (cr.filter === 'done' && CR_DONE.indexOf(a.status) >= 0); });
+    var filters = [['', 'All'], ['done', 'Applied'], ['needs_review', 'Needs you'], ['ready_to_apply', 'Ready'], ['interview', 'Interview'], ['skipped', 'Skipped'], ['failed', 'Failed']];
     var html = crStatsHtml() + '<div class="cr-filters">' + filters.map(function(f){ return '<button type="button" class="btn-small' + (cr.filter === f[0] ? ' on' : '') + '" data-cr="filter" data-f="' + f[0] + '">' + f[1] + '</button>'; }).join('') +
       '<button type="button" class="btn-small" data-cr="refresh">↻</button></div>';
     if (!list.length) return html + '<p class="tools-empty">No applications here yet. They appear as the Auto-apply workflow runs, or tailor one yourself in “Tailor resume”.</p>';
@@ -1871,7 +1914,8 @@ body{
       var open = cr.open[a.id];
       var det = '';
       if (open){
-        det = '<div class="cr-det">' +
+        crLoadDetail(a.id);
+        det = '<div class="cr-det">' + crDetailHtml(a) +
           (a.fit_reasons && a.fit_reasons.length ? '<b>Why it fits</b><ul>' + a.fit_reasons.map(function(x){ return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>' : '') +
           (a.missing && a.missing.length ? '<b>Gaps</b><div class="cr-chips">' + a.missing.map(function(x){ return '<span>' + escapeHtml(x) + '</span>'; }).join('') + '</div>' : '') +
           (a.subject ? '<b>Email sent</b><div class="cr-mail"><div>To: ' + escapeHtml(a.email_to || '') + '</div><div>Subject: ' + escapeHtml(a.subject) + '</div><pre>' + escapeHtml(a.body || '') + '</pre></div>' : '') +
@@ -1885,7 +1929,7 @@ body{
       return '<div class="wf-card cr-app" data-id="' + a.id + '"><div class="wf-head" data-cr="toggle" data-id="' + a.id + '" style="cursor:pointer">' +
         '<span class="wf-icon">' + st[0] + '</span><div class="wf-main"><div class="wf-title">' + escapeHtml(a.title || '(untitled)') + '</div>' +
         '<div class="wf-detail" style="margin-top:2px">' + escapeHtml(a.company || '') + (a.location ? ' · ' + escapeHtml(a.location.length > 60 ? a.location.slice(0, 57) + '…' : a.location) : '') + (a.source ? ' · ' + escapeHtml(a.source) : '') + '</div>' +
-        '<div class="wf-sched">' + st[1] + (a.fit != null ? ' · fit ' + a.fit + '/100' : '') + ' · ' + wfAgo(a.updated_at) + '</div></div>' +
+        '<div class="wf-sched">' + st[1] + (a.fit != null ? ' · fit ' + a.fit + '/100' : '') + (a.answers_count ? ' · ' + a.answers_count + ' answers' : '') + ((a.shots || []).length ? ' · 📷' : '') + ' · ' + wfAgo(a.applied_at || a.updated_at) + '</div></div>' +
         (a.url ? '<a class="btn-small" href="' + crAttr(a.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">Job ↗</a>' : '') + '</div>' + det + '</div>';
     }).join('');
   }
@@ -1970,6 +2014,7 @@ body{
     else if (act === 'filter'){ cr.filter = btn.getAttribute('data-f'); crRender(); }
     else if (act === 'refresh'){ crRefresh(); }
     else if (act === 'toggle'){ cr.open[id] = !cr.open[id]; crRender(); }
+    else if (act === 'markapplied'){ crSend('/api/career/applications/' + id, 'PATCH', {status: 'applied_manually'}).then(function(r){ crNotice(crMsg(r, 'Marked as applied.'), !crOk(r)); crRefresh(); }); }
     else if (act === 'pdf' || act === 'tex'){ crOpenFile(id, act); }
     else if (act === 'sendnow'){
       var to = window.prompt('Send this application (tailored resume + cover email) to:', btn.getAttribute('data-to') || '');
