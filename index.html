@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Jarvis</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<meta name="theme-color" content="#161a22">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
@@ -632,6 +639,40 @@ body{
 .tool-params-label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:3px;}
 .tool-params code{display:block;font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--border);padding:6px 8px;border-radius:6px;color:var(--text);white-space:pre-wrap;word-break:break-word;}
 .tools-empty{font-size:12.5px;color:var(--text-muted);font-style:italic;}
+/* in-chat email compose card */
+.email-card{border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--surface);max-width:460px;}
+.email-card-title{font-weight:700;font-size:13px;color:var(--text);margin-bottom:4px;}
+.email-card-from{font-size:11.5px;color:var(--text-muted);margin-bottom:10px;font-family:'JetBrains Mono',monospace;}
+.email-card .field{margin-bottom:9px;}
+.email-card .field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:3px;}
+.email-card .field input,.email-card .field textarea{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font:inherit;font-size:12.5px;padding:7px 9px;}
+.email-card .field textarea{min-height:72px;resize:vertical;line-height:1.5;}
+.email-card-actions{display:flex;gap:8px;margin-top:4px;}
+.email-card-status{font-size:12px;margin-top:8px;color:var(--text-muted);}
+.email-card-status.ok{color:#3fb950;}
+.email-card-status.err{color:#f85149;}
+/* voice input */
+.icon-btn.recording{color:#f85149;border-color:#f85149;animation:micpulse 1.2s infinite ease-in-out;}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,.35);}50%{box-shadow:0 0 0 6px rgba(248,81,73,0);}}
+/* career autopilot tab */
+.ap-kill{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--surface);margin-bottom:10px;}
+.ap-kill.paused{border-color:#f85149;}
+.ap-kill b{display:block;font-size:13.5px;}
+.ap-kill span{font-size:11.5px;color:var(--text-muted);}
+.ap-kill .ap-main{flex:1;min-width:0;}
+.ap-facts{font-size:12px;color:var(--text-muted);line-height:1.7;margin:0 0 10px;}
+.ap-facts b{color:var(--text);font-weight:600;}
+.ap-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;}
+.ap-table th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);}
+.ap-table td{padding:5px 6px;border-bottom:1px solid var(--border);}
+.ap-table td.num,.ap-table th.num{text-align:right;font-variant-numeric:tabular-nums;}
+.ap-event{font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);}
+.ap-event .tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 7px;border:1px solid var(--border);margin-right:6px;}
+.ap-event .tag.interview{color:#3fb950;border-color:#3fb950;}
+.ap-event .tag.rejection,.ap-event .tag.bounce,.ap-event .tag.followup_failed{color:#f85149;border-color:#f85149;}
+.ap-event .tag.approved{color:#3fb950;border-color:#3fb950;}
+.ap-event .tag.held{color:#d29922;border-color:#d29922;}
+@media (prefers-reduced-motion:reduce){ .icon-btn.recording{animation:none;} }
 .wf-card{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--surface);}
 .wf-card.off{opacity:.72;}
 .wf-head{display:flex;align-items:flex-start;gap:12px;}
@@ -1068,6 +1109,12 @@ body{
     <button class="icon-btn" id="attachBtn" aria-label="Attach files" title="Attach files">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
     </button>
+    <button class="icon-btn" id="composeEmailBtn" aria-label="Compose email" title="Compose an email">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+    </button>
+    <button class="icon-btn" id="micBtn" aria-label="Voice input" title="Speak your message" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>
+    </button>
     <textarea id="messageInput" placeholder="Message Jarvis…" rows="1" aria-label="Message"></textarea>
     <button class="send-btn" id="sendBtn" aria-label="Send message">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
@@ -1142,6 +1189,8 @@ body{
     messageInput: document.getElementById('messageInput'),
     sendBtn: document.getElementById('sendBtn'),
     attachBtn: document.getElementById('attachBtn'),
+    composeEmailBtn: document.getElementById('composeEmailBtn'),
+    micBtn: document.getElementById('micBtn'),
     fileInput: document.getElementById('fileInput'),
     attachmentsBar: document.getElementById('attachmentsBar'),
     toolsBtn: document.getElementById('toolsBtn'),
@@ -1882,7 +1931,7 @@ body{
   }
 
   function crTabs(){
-    var tabs = [['apps', 'Applications'], ['tailor', 'Tailor resume'], ['profile', 'Profile'], ['knowledge', 'Knowledge files'], ['sending', 'Sending']];
+    var tabs = [['apps', 'Applications'], ['autopilot', 'Autopilot'], ['tailor', 'Tailor resume'], ['profile', 'Profile'], ['knowledge', 'Knowledge files'], ['sending', 'Sending']];
     return '<div class="cr-tabs">' + tabs.map(function(t){ return '<button type="button" class="cr-tab' + (cr.tab === t[0] ? ' on' : '') + '" data-cr="tab" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
   }
   function crRender(){
@@ -1891,6 +1940,7 @@ body{
     else if (cr.tab === 'tailor') html += crTailorHtml();
     else if (cr.tab === 'profile') html += crProfileHtml();
     else if (cr.tab === 'knowledge') html += crKnowledgeHtml();
+    else if (cr.tab === 'autopilot') html += crAutopilotHtml();
     else html += crSendingHtml();
     cr.body.innerHTML = html;
   }
@@ -1986,8 +2036,57 @@ body{
   function crLoadApps(){ return wfJson('/api/career/applications').then(function(r){ if (r.ok){ cr.apps = r.data.applications || []; cr.stats = r.data.stats; } }); }
   function crLoadProfile(){ return wfJson('/api/career/profile').then(function(r){ if (r.ok){ cr.profile = r.data.profile; cr.stats = r.data.stats; } }); }
   function crLoadFiles(){ return wfJson('/api/context/files').then(function(r){ if (r.ok) cr.files = r.data.files || []; }); }
+  // ── Autopilot: kill switch, model tiers, funnel and activity for the autonomous applier ──
+  function crLoadAutopilot(){
+    return Promise.all([wfJson('/api/career/autopilot'), wfJson('/api/career/funnel?days=30'), wfJson('/api/career/events?limit=15')])
+      .then(function(rs){
+        cr.ap = {s: rs[0].ok ? rs[0].data : null, f: rs[1].ok ? rs[1].data : null,
+                 e: rs[2].ok ? (rs[2].data.events || []) : [], err: rs[0].ok ? '' : crMsg(rs[0], 'Could not load autopilot status.')};
+      });
+  }
+  function crAutopilotHtml(){
+    var ap = cr.ap || {}, s = ap.s, f = ap.f;
+    if (!s) return '<p class="tools-empty">' + escapeHtml(ap.err || 'Loading autopilot…') + '</p>';
+    var job = s.automation || {}, r = s.router || {}, bg = r.background || {}, dec = r.decision || {};
+    var html = '<div class="ap-kill' + (s.paused ? ' paused' : '') + '"><div class="ap-main"><b>' +
+      (s.paused ? '⏸ Auto-apply is paused' : '🚀 Auto-apply is running') + '</b><span>' +
+      escapeHtml(job.schedule || 'no schedule found') + (job.enabled === false ? ' · schedule disabled' : '') + '</span></div>' +
+      '<button type="button" class="switch" role="switch" aria-checked="' + (s.paused ? 'false' : 'true') + '" aria-label="' +
+      (s.paused ? 'Resume' : 'Pause') + ' auto-apply" data-cr="apkill"></button></div>';
+    html += '<p class="ap-facts">' +
+      'Last run: <b>' + escapeHtml(job.last_status || '—') + '</b>' + (job.last_run_at ? ' · ' + escapeHtml(wfAgo(job.last_run_at)) : '') + '<br>' +
+      'Sent today: <b>' + (s.sent_today || 0) + '</b> · this hour: <b>' + (s.sent_last_hour || 0) + ' / ' + s.hourly_cap + '</b><br>' +
+      'Background model: <b>' + escapeHtml(bg.model || '?') + '</b> ' + (bg.loaded ? '🟢 loaded' : bg.installed ? '⚪ idle' : '🔴 missing') + '<br>' +
+      'Decisions &amp; approvals: <b>' + escapeHtml(String(dec.model || '?').replace(/^groq:/, 'Groq ')) + '</b> ' +
+      (dec.configured ? '🟢' : '🔴 no key') + ' · reviewer <b>' + (s.reviewer ? 'on' : 'off') + '</b><br>' +
+      'Reply tracking: <b>' + (s.reply_tracking ? 'on · follow-up after ' + s.followup_days + ' days' : 'off — add IMAP_PASS to enable') + '</b><br>' +
+      'Never emails: <b>' + escapeHtml((s.blocked_domains || []).join(', ') || '—') + '</b></p>';
+    if (f){
+      html += '<div class="cr-stats">' + [['Sent', f.sent_total], ['Replied', f.replied], ['Interviews', f.interviews],
+        ['Reply rate', f.reply_rate == null ? '—' : f.reply_rate + '%']].map(function(x){
+          return '<div><b>' + escapeHtml(String(x[1])) + '</b><span>' + x[0] + '</span></div>'; }).join('') + '</div>';
+      if ((f.by_source || []).length){
+        html += '<table class="ap-table"><thead><tr><th>Source</th><th class="num">Considered</th><th class="num">Sent</th></tr></thead><tbody>' +
+          f.by_source.slice(0, 6).map(function(x){ return '<tr><td>' + escapeHtml(x.name) + '</td><td class="num">' + x.considered +
+            '</td><td class="num">' + x.sent + '</td></tr>'; }).join('') + '</tbody></table>';
+      }
+    }
+    html += '<div class="wf-actions" style="margin-bottom:12px">' +
+      '<button type="button" class="btn-small" data-cr="apreplies">↻ Check replies</button>' +
+      '<button type="button" class="btn-small" data-cr="apdigest">✉ Email today\'s digest</button>' +
+      '<button type="button" class="btn-small" data-cr="apcleanup">🧹 Clean up (backup first)</button>' +
+      '<button type="button" class="btn-small" data-cr="refresh">Refresh</button></div>';
+    var ev = ap.e || [];
+    html += '<p class="dashboard-section-label" style="margin-top:0">Recent activity</p>' + (ev.length ? ev.map(function(e){
+      var t = String(e.type || ''), cls = t.replace(/^review_/, '');
+      return '<div class="ap-event"><span class="tag ' + escapeHtml(cls) + '">' + escapeHtml(t.replace(/_/g, ' ')) + '</span>' +
+        escapeHtml((e.title || '') + (e.company ? ' — ' + e.company : '')) +
+        '<div class="wf-detail">' + escapeHtml(e.detail || '') + ' · ' + escapeHtml(wfAgo(e.created_at)) + '</div></div>';
+    }).join('') : '<p class="tools-empty">Nothing logged yet — replies, follow-ups and the 120B reviewer\'s approve/hold verdicts appear here.</p>');
+    return html;
+  }
   function crRefresh(){
-    var p = cr.tab === 'profile' ? crLoadProfile() : cr.tab === 'knowledge' ? crLoadFiles() : crLoadApps();
+    var p = cr.tab === 'autopilot' ? crLoadAutopilot() : cr.tab === 'profile' ? crLoadProfile() : cr.tab === 'knowledge' ? crLoadFiles() : crLoadApps();
     return p.then(crRender).finally(crPoll);
   }
   function crPoll(){
@@ -2011,6 +2110,29 @@ body{
   function crAction(btn){
     var act = btn.getAttribute('data-cr'), id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
     if (act === 'tab'){ cr.tab = btn.getAttribute('data-tab'); crRender(); crRefresh(); }
+    else if (act === 'apkill'){
+      var pausing = !(cr.ap && cr.ap.s && cr.ap.s.paused);
+      if (pausing && !window.confirm('Pause auto-apply? No applications or follow-ups will be sent until you resume it.')) return;
+      crSend('/api/career/kill', 'POST', {on: pausing, reason: 'toggled in the app'}).then(function(r){
+        crNotice(crOk(r) ? (pausing ? 'Auto-apply paused.' : 'Auto-apply resumed.') : crMsg(r, 'Could not change that.'), !crOk(r));
+        crRefresh();
+      });
+    }
+    else if (act === 'apreplies'){
+      crNotice('Checking the inbox…');
+      crSend('/api/career/check-replies', 'POST', {}).then(function(r){
+        var d = r.data || {};
+        crNotice(crOk(r) ? 'Matched ' + (d.matched || 0) + ' new repl' + (d.matched === 1 ? 'y' : 'ies') + '.' : crMsg(r, 'Could not check replies.'), !crOk(r));
+        crRefresh();
+      });
+    }
+    else if (act === 'apdigest'){
+      crSend('/api/career/digest', 'POST', {}).then(function(r){ crNotice(crOk(r) ? 'Digest emailed.' : crMsg(r, 'Could not send the digest.'), !crOk(r)); });
+    }
+    else if (act === 'apcleanup'){
+      if (!window.confirm('Email a CSV backup of skipped/failed applications older than 7 days, then delete them? Rows are deleted only if the backup email sends.')) return;
+      crSend('/api/career/cleanup', 'POST', {}).then(function(r){ crNotice(crMsg(r, 'Done.'), !crOk(r)); crRefresh(); });
+    }
     else if (act === 'filter'){ cr.filter = btn.getAttribute('data-f'); crRender(); }
     else if (act === 'refresh'){ crRefresh(); }
     else if (act === 'toggle'){ cr.open[id] = !cr.open[id]; crRender(); }
@@ -2963,6 +3085,20 @@ body{
     }).join(' ');
     var displayText = text + (displayNotes ? '\n' + displayNotes : '');
 
+    // An email request ("email: … subject: … body: …") opens a pre-filled compose card instead of
+    // relying on the model to emit a tool call — the Send button posts straight to /api/send-email.
+    if (!attachments.length){
+      var emailFields = parseEmailIntent(text);
+      if (emailFields){
+        addRow('user', displayText);
+        history.push({role:'user', content:text});
+        els.messageInput.value = '';
+        autoGrow();
+        addEmailCard(emailFields);
+        return;
+      }
+    }
+
     addRow('user', displayText);
     history.push({role:'user', content:text});
     els.messageInput.value = '';
@@ -2974,17 +3110,9 @@ body{
     setBusy(true);
 
     var model = els.modelSelect.value;
+    var payload = { model: model, messages: history, session_id: sessionId, attachments: attachments };
 
-    apiFetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: model, messages: history, session_id: sessionId, attachments: attachments })
-    }).then(function(res){
-      return res.json().then(function(data){
-        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-        return data;
-      });
-    }).then(function(data){
+    function finishReply(data, live){
       stopTyping(typingRow);
       var reply = data.reply || '(empty response)';
       var meta = labelFor(model);
@@ -2993,16 +3121,196 @@ body{
         els.toolsLastUsed.hidden = false;
         els.toolsLastUsed.textContent = 'Last reply used: ' + data.used_tools.join(', ');
       }
-      addRow('assistant', reply, {metaText: meta});
+      if (live){ live.bubble.textContent = reply; live.meta.textContent = meta; }
+      else addRow('assistant', reply, {metaText: meta});
       history.push({role:'assistant', content:reply});
+    }
+
+    streamChat(payload, typingRow).then(function(out){
+      finishReply(out.data, out.live);
+    }).catch(function(err){
+      if (err && err.fallback){
+        return plainChat(payload).then(function(data){ finishReply(data, null); });
+      }
+      throw err;
     }).catch(function(err){
       stopTyping(typingRow);
-      addRow('assistant', 'Request failed: ' + err.message, {error:true});
+      addRow('assistant', 'Request failed: ' + (err && err.message ? err.message : err), {error:true});
       history.pop();
     }).finally(function(){
       setBusy(false);
       els.messageInput.focus();
     });
+  }
+
+  function plainChat(payload){
+    return apiFetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    }).then(function(res){
+      return res.json().then(function(data){
+        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+        return data;
+      });
+    });
+  }
+
+  // Server-Sent Events over fetch (POST + auth header, so not EventSource): real progress from the
+  // server ("Searching the web…", tool names) and the reply text as it is written.
+  function streamChat(payload, typingRow){
+    return apiFetch('/api/chat/stream', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    }).then(function(res){
+      if (!res.ok || !res.body || !res.body.getReader || typeof TextDecoder === 'undefined') throw {fallback: true};
+      var reader = res.body.getReader(), dec = new TextDecoder(), buf = '', live = null, text = '';
+      var label = typingRow.querySelector('.typing-status');
+      function liveBubble(){
+        if (!live){ stopTyping(typingRow); live = addRow('assistant', '', {metaText: 'writing…'}); }
+        return live;
+      }
+      return new Promise(function(resolve, reject){
+        var settled = false;
+        function handle(ev, data){
+          if (ev === 'status'){
+            if (typingRow._statusTimer){ clearInterval(typingRow._statusTimer); typingRow._statusTimer = null; }
+            if (data && data.text){ if (label) label.textContent = data.text; if (live) live.meta.textContent = data.text; }
+          } else if (ev === 'delta'){
+            text += (data && data.text) || '';
+            liveBubble().bubble.textContent = text;
+            els.messages.scrollTop = els.messages.scrollHeight;
+          } else if (ev === 'reset'){
+            text = ''; if (live) live.bubble.textContent = '';
+          } else if (ev === 'done'){
+            settled = true; resolve({data: data || {}, live: live});
+          } else if (ev === 'error'){
+            settled = true; reject(new Error((data && data.error) || 'The server reported an error.'));
+          }
+        }
+        function pump(){
+          reader.read().then(function(r){
+            if (r.done){
+              if (!settled) reject(new Error('The connection closed before the reply finished — it is saved, reload to see it.'));
+              return;
+            }
+            buf += dec.decode(r.value, {stream: true});
+            var blocks = buf.split('\n\n'); buf = blocks.pop();
+            blocks.forEach(function(block){
+              var ev = 'message', data = '';
+              block.split('\n').forEach(function(line){
+                if (line.indexOf('event:') === 0) ev = line.slice(6).trim();
+                else if (line.indexOf('data:') === 0) data += line.slice(5).trim();
+              });
+              if (!data) return;
+              try { handle(ev, JSON.parse(data)); } catch (e) { /* ignore a malformed block */ }
+            });
+            if (!settled) pump();
+          }).catch(function(e){ if (!settled) reject(e); });
+        }
+        pump();
+      });
+    });
+  }
+
+  // ── In-chat email compose card (deterministic send, shows the sending account) ──
+  var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+  function parseEmailIntent(text){
+    if (!text) return null;
+    var labelRe = /(e-?mail|recipient|to|subject|sub|body|message|content|from)\s*:/gi;
+    var matches = [], m;
+    while ((m = labelRe.exec(text)) !== null) matches.push({key: m[1].toLowerCase().replace('-', ''), vStart: labelRe.lastIndex, lStart: m.index});
+    var f = {to: '', subject: '', body: ''};
+    for (var i = 0; i < matches.length; i++){
+      var end = (i + 1 < matches.length) ? matches[i + 1].lStart : text.length;
+      var val = text.slice(matches[i].vStart, end).trim(), k = matches[i].key;
+      if (k === 'email' || k === 'recipient' || k === 'to'){ var em = val.match(EMAIL_RE); f.to = em ? em[0] : val; }
+      else if (k === 'subject' || k === 'sub') f.subject = val;
+      else if (k === 'body' || k === 'message' || k === 'content') f.body = (f.body ? f.body + '\n' : '') + val;
+      else if (k === 'from' && val) f.body = 'From: ' + val + (f.body ? '\n' + f.body : '');
+    }
+    if (!f.to){
+      var em2 = text.match(EMAIL_RE);
+      if (em2 && (/\b(e-?mail|send\s+(a\s+)?mail|mail\s+to)\b/i.test(text) || matches.length)) f.to = em2[0];
+    }
+    return (f.to || (matches.length && (f.subject || f.body))) ? f : null;
+  }
+  function addEmailCard(prefill){
+    prefill = prefill || {};
+    if (els.emptyState){ els.emptyState.remove(); els.emptyState = null; }
+    var row = document.createElement('div'); row.className = 'row assistant';
+    var avatar = document.createElement('div'); avatar.className = 'avatar'; avatar.textContent = '◈';
+    var col = document.createElement('div'); col.style.minWidth = '0';
+    var card = document.createElement('div'); card.className = 'email-card';
+    card.innerHTML =
+      '<div class="email-card-title">✉️ Send email</div>' +
+      '<div class="email-card-from">From: <span class="ec-from">' + escapeHtml(emailFrom || 'loading…') + '</span></div>' +
+      '<div class="field"><label>To</label><input type="email" class="ec-to" placeholder="recipient@example.com"></div>' +
+      '<div class="field"><label>Subject</label><input type="text" class="ec-subject" placeholder="Subject"></div>' +
+      '<div class="field"><label>Body</label><textarea class="ec-body" placeholder="Message…"></textarea></div>' +
+      '<div class="email-card-actions"><button type="button" class="btn-primary ec-send">Send</button>' +
+      '<button type="button" class="btn-small ec-cancel">Cancel</button></div>' +
+      '<div class="email-card-status" hidden></div>';
+    var q = function(s){ return card.querySelector(s); };
+    var toEl = q('.ec-to'), subEl = q('.ec-subject'), bodyEl = q('.ec-body'), sendEl = q('.ec-send'), cancelEl = q('.ec-cancel'), st = q('.email-card-status');
+    toEl.value = prefill.to || ''; subEl.value = prefill.subject || ''; bodyEl.value = prefill.body || '';
+    if (!emailFrom){
+      apiFetch('/api/email-from').then(function(r){ return r.json(); })
+        .then(function(d){ emailFrom = (d && d.from) || ''; q('.ec-from').textContent = emailFrom || 'the server mailbox'; })
+        .catch(function(){ q('.ec-from').textContent = 'the server mailbox'; });
+    }
+    function status(msg, kind){ st.hidden = false; st.textContent = msg; st.className = 'email-card-status ' + (kind || ''); }
+    sendEl.addEventListener('click', function(){
+      var to = toEl.value.trim();
+      if (!EMAIL_RE.test(to)){ status('Enter a valid recipient email.', 'err'); toEl.focus(); return; }
+      sendEl.disabled = cancelEl.disabled = true; status('Sending…');
+      apiFetch('/api/send-email', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({to: to, subject: subEl.value.trim(), body: bodyEl.value})})
+        .then(function(res){ return res.json().then(function(d){ return {ok: res.ok && d.ok, d: d}; }); })
+        .then(function(r){
+          if (r.ok){
+            toEl.disabled = subEl.disabled = bodyEl.disabled = true; sendEl.remove();
+            cancelEl.disabled = false; cancelEl.textContent = 'Close';
+            status('✅ Sent to ' + to, 'ok');
+            history.push({role: 'assistant', content: 'Email sent to ' + to + (subEl.value.trim() ? ' (subject: ' + subEl.value.trim() + ')' : '') + '.'});
+          } else { status((r.d && r.d.message) || 'Failed to send.', 'err'); sendEl.disabled = cancelEl.disabled = false; }
+        }).catch(function(e){ status('Failed to send: ' + e.message, 'err'); sendEl.disabled = cancelEl.disabled = false; });
+    });
+    cancelEl.addEventListener('click', function(){ row.remove(); });
+    col.appendChild(card); row.appendChild(avatar); row.appendChild(col);
+    els.messages.appendChild(row); els.messages.scrollTop = els.messages.scrollHeight;
+    (prefill.to ? subEl : toEl).focus();
+  }
+  els.composeEmailBtn.addEventListener('click', function(){ addEmailCard({}); });
+
+  // ── Voice input (Web Speech API; the button only appears where the browser supports it) ──
+  (function(){
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || !els.micBtn) return;
+    els.micBtn.hidden = false;
+    var rec = null, base = '';
+    els.micBtn.addEventListener('click', function(){
+      if (rec){ rec.stop(); return; }
+      rec = new SR();
+      rec.lang = navigator.language || 'en-IN';
+      rec.interimResults = true;
+      rec.continuous = false;
+      base = els.messageInput.value ? els.messageInput.value.replace(/\s*$/, ' ') : '';
+      rec.onresult = function(e){
+        var t = '';
+        for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+        els.messageInput.value = base + t; autoGrow();
+      };
+      rec.onerror = function(){};
+      rec.onend = function(){
+        rec = null; els.micBtn.classList.remove('recording');
+        els.micBtn.setAttribute('aria-label', 'Voice input'); els.messageInput.focus();
+      };
+      try { rec.start(); } catch (e) { rec = null; return; }
+      els.micBtn.classList.add('recording'); els.micBtn.setAttribute('aria-label', 'Stop voice input');
+    });
+  })();
+
+  // ── Installable app (PWA): network-first service worker, never touches /api ──
+  if ('serviceWorker' in navigator && location.protocol === 'https:'){
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(){}); });
   }
 
   els.sendBtn.addEventListener('click', sendMessage);
