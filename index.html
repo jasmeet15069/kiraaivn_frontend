@@ -1061,6 +1061,22 @@ body{
       </button>
     </div>
     <div class="sidebar-body">
+      <!-- The phone tracker. This sidebar is built for a desktop width; the
+           tracker is the same data laid out for a phone, and it adds the two
+           things this panel does not show: WHY an application is parked
+           (captcha refusal vs honest decline vs waiting on the owner), and the
+           answer sheet the form filler reads before every application. -->
+      <a id="careerTrackerLink" href="/career/" target="_blank" rel="noopener"
+         style="display:flex;align-items:center;justify-content:space-between;gap:10px;
+                margin-bottom:12px;padding:11px 13px;border-radius:11px;text-decoration:none;
+                background:rgba(124,92,255,.12);border:1px solid rgba(124,92,255,.35);color:inherit">
+        <span>
+          <strong style="display:block;font-size:14px">Open job tracker</strong>
+          <span style="opacity:.7;font-size:12px">what applied, what is parked and why</span>
+        </span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </a>
       <div id="careerNote" class="wf-note" hidden></div>
       <div id="careerBody"><p class="tools-empty">Loading…</p></div>
     </div>
