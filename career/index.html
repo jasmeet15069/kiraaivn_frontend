@@ -236,8 +236,12 @@ function saveFacts(){
   if (!Object.keys(body).length){ document.getElementById('serr').textContent = 'Nothing filled in yet.'; return; }
   document.getElementById('serr').textContent = 'Saving…';
   api('/api/career/facts', {method:'POST', body: JSON.stringify(body)}).then(function(r){
-    document.getElementById('serr').textContent = 'Saved: ' + (r.saved || []).join(', ') +
-      '. The next run will use these.';
+    var msg = 'Saved: ' + (r.saved || []).join(', ') + '.';
+    // Applications parked for one of these questions are moved back into the
+    // queue, otherwise filling the value would only help future postings.
+    if (r.requeued) msg += ' ' + r.requeued + ' parked application(s) re-queued.';
+    else msg += ' The next run will use these.';
+    document.getElementById('serr').textContent = msg;
     load();
   }).catch(function(){ document.getElementById('serr').textContent = 'Could not save.'; });
 }
